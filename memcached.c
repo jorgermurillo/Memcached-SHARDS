@@ -48,6 +48,8 @@
 #include <sysexits.h>
 #include <stddef.h>
 
+#include <benchmarking.c>
+
 /* FreeBSD 4.x doesn't have IOV_MAX exposed. */
 #ifndef IOV_MAX
 #if defined(__FreeBSD__) || defined(__APPLE__) || defined(__GNU__)
@@ -3203,6 +3205,8 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                 return;
             }
 
+            bm_record_read_op(key, nkey);
+       
             it = item_get(key, nkey, c);
             if (settings.detail_enabled) {
                 stats_prefix_record_get(key, nkey, NULL != it);
@@ -3399,6 +3403,8 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
         out_string(c, "CLIENT_ERROR bad command line format");
         return;
     }
+
+    bm_record_write_op("UPDATE", key, nkey);
 
     /* Ubuntu 8.04 breaks when I pass exptime to safe_strtol */
     exptime = exptime_int;
@@ -6354,7 +6360,8 @@ int main (int argc, char **argv) {
     }
     /* start up worker threads if MT mode */
     memcached_thread_init(settings.num_threads);
-
+    bm_init();
+    
     if (start_assoc_maintenance_thread() == -1) {
         exit(EXIT_FAILURE);
     }
@@ -6458,6 +6465,9 @@ int main (int argc, char **argv) {
 
     /* Initialize the uriencode lookup table. */
     uriencode_init();
+    
+    pthread_t bm_thread;
+    pthread_create(&bm_thread, NULL, bm_loop_in_thread, NULL);
 
     /* enter the event loop */
     if (event_base_loop(main_base, 0) != 0) {
