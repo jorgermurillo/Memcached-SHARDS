@@ -139,13 +139,8 @@ void bm_write_op_to_oq(bm_oq_t* oq, bm_op_t op) {
 	bm_oq_push(oq, item);
 }
 
-// @ Gus: LIBEVENT
 static
-struct event_base* bm_event_base;
-
-static
-void bm_clock_handler(evutil_socket_t fd, short what, void* args) {
-	fprintf(stderr, "Tick\n");
+void bm_consume_ops() {
 	switch(bm_type) {
 		case BM_NONE: {
     		;
@@ -176,6 +171,16 @@ void bm_clock_handler(evutil_socket_t fd, short what, void* args) {
 	}
 }
 
+// @ Gus: LIBEVENT
+static
+struct event_base* bm_event_base;
+
+static
+void bm_clock_handler(evutil_socket_t fd, short what, void* args) {
+	fprintf(stderr, "Tick\n");
+	bm_consume_ops();
+}
+
 static
 void bm_libevent_loop() {
 	bm_event_base = event_base_new();
@@ -188,15 +193,16 @@ void bm_libevent_loop() {
 	struct timeval t = {2, 0};
     event_add(timer_event, &t);
 
-    bm_output_fd = open(bm_output_filename, 
-						O_WRONLY | O_CREAT | O_TRUNC,
-						S_IRUSR | S_IWUSR);
 	event_base_dispatch(bm_event_base);
 }
 
 static
 void* bm_loop_in_thread(void* args) {
+	bm_output_fd = open(bm_output_filename, 
+						O_WRONLY | O_CREAT | O_TRUNC,
+						S_IRUSR | S_IWUSR);
 	bm_libevent_loop();
+	// while(true) bm_consume_ops();
 	return NULL;
 }
 
