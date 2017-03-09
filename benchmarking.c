@@ -1,8 +1,12 @@
+#include <mpscq.h>
+#include <mpsc.c>
+
 typedef enum {
 	BM_NONE,
 	BM_PRINT,
 	BM_DIRECT_FILE,
 	BM_TO_QUEUE,
+	BM_TO_LOCK_FREE_QUEUE,
 } bm_type_t;
 
 typedef enum {
@@ -12,8 +16,7 @@ typedef enum {
 
 typedef struct {
     bm_op_type_t type;
-    char*      	 key;
-    size_t	     key_length;
+    uint32_t	 key_hv;
 } bm_op_t;
 
 // @ Gus: OP QUEUE
@@ -38,7 +41,6 @@ bm_oq_item_t* malloc_oq_item() {
 
 static
 void free_oq_item(bm_oq_item_t* oq_item) {
-	free(oq_item->op.key);
 	free(oq_item);
 }
 
@@ -79,14 +81,23 @@ bm_oq_item_t* bm_oq_pop(bm_oq_t* oq) {
 }
 
 // @ Gus: bm settings
-bm_type_t bm_type = BM_TO_QUEUE;
+bm_type_t bm_type = BM_TO_LOCK_FREE_QUEUE;
 
 char bm_output_filename[] = "benchmarking_output.txt";
 int  bm_output_fd = -1;
 
 bm_oq_t bm_oq;
+struct mpscq* bm_mpsc_oq;
+#define BM_MPSC_OQ_CAP 100
 
 // @ Gus: bm functions
+static
+bool bm_mpsc_oq_enqueue(bm_op_t op) {
+	bm_op_t* op_ptr = malloc(sizeof(bm_op_t));
+	*op_ptr = op;
+	return mpscq_enqueue(bm_mpsc_oq, op_ptr);
+}
+
 static
 void bm_init() {
 	if (bm_type == BM_NONE) return;
@@ -100,28 +111,25 @@ void bm_init() {
     	} break;
     	case BM_DIRECT_FILE: {
     		bm_output_fd = open(bm_output_filename, 
-    						 O_WRONLY | O_CREAT,
-    						 S_IRUSR);
+    						 O_WRONLY | O_CREAT | O_TRUNC,
+    						 S_IRUSR, S_IWUSR);
     	} break;
     	case BM_TO_QUEUE: {
     		bm_oq_init(&bm_oq);
+    	} break;
+    	case BM_TO_LOCK_FREE_QUEUE: {
+    		bm_mpsc_oq = mpscq_create(NULL, BM_MPSC_OQ_CAP);
     	} break;
     }
 }
 
 static
-void bm_write_line_op_no_free_key(int fd, bm_op_t op) {
-	size_t str_buffer_length = 3 + op.key_length;
-	char* str_buffer = malloc(str_buffer_length);
-	sprintf(str_buffer, "%d %s\n", op.type, op.key);
-	write(fd, str_buffer, str_buffer_length);
-	free(str_buffer);
-}
-
-static
 void bm_write_line_op(int fd, bm_op_t op) {
-	bm_write_line_op_no_free_key(fd, op);
-	free(op.key);
+	size_t str_buffer_length = 3 + 10;
+	char* str_buffer = malloc(str_buffer_length);
+	sprintf(str_buffer, "%d %"PRIu32"\n", op.type, op.key_hv);
+	write(fd, str_buffer, strlen(str_buffer));
+	free(str_buffer);
 }
 
 static
@@ -138,17 +146,38 @@ struct event_base* bm_event_base;
 static
 void bm_clock_handler(evutil_socket_t fd, short what, void* args) {
 	fprintf(stderr, "Tick\n");
-	bm_oq_item_t* item = bm_oq_pop(&bm_oq);
-	while(NULL != item) {
-		fprintf(stderr, "op: %d key: %s\n", item->op.type, item->op.key);
-		bm_write_line_op_no_free_key(bm_output_fd, item->op);
-		free_oq_item(item);
-		item = bm_oq_pop(&bm_oq);
+	switch(bm_type) {
+		case BM_NONE: {
+    		;
+    	} break;
+    	case BM_PRINT: {
+    		;
+    	} break;
+    	case BM_DIRECT_FILE: {
+ 			;
+    	} break;
+    	case BM_TO_QUEUE: {
+    		bm_oq_item_t* item = bm_oq_pop(&bm_oq);
+			while(NULL != item) {
+				bm_write_line_op(bm_output_fd, item->op);
+				free_oq_item(item);
+				item = bm_oq_pop(&bm_oq);
+			}
+    	} break;
+    	case BM_TO_LOCK_FREE_QUEUE: {
+    		void* item = mpscq_dequeue(bm_mpsc_oq);
+    		while(NULL != item) {
+    			bm_op_t* op_ptr = item;
+    			bm_write_line_op(bm_output_fd, *op_ptr);
+    			free(op_ptr);
+    			item = mpscq_dequeue(bm_mpsc_oq);
+    		}
+    	} break;
 	}
 }
 
 static
-void bm_loop() {
+void bm_libevent_loop() {
 	bm_event_base = event_base_new();
 
 	struct event* timer_event = event_new(bm_event_base,
@@ -160,28 +189,26 @@ void bm_loop() {
     event_add(timer_event, &t);
 
     bm_output_fd = open(bm_output_filename, 
-						O_WRONLY | O_CREAT,
-						S_IRUSR);
+						O_WRONLY | O_CREAT | O_TRUNC,
+						S_IRUSR | S_IWUSR);
 	event_base_dispatch(bm_event_base);
 }
 
 static
 void* bm_loop_in_thread(void* args) {
-	bm_loop();
+	bm_libevent_loop();
 	return NULL;
 }
 
 static
 void bm_record_read_op(char* key, size_t key_length) {
-	char* new_key = malloc(key_length);
-	strcpy(new_key, key);
-    bm_op_t op = {BM_READ_OP, new_key, key_length};
+	bm_op_t op = {BM_READ_OP, hash(key, key_length)};
     switch(bm_type) {
     	case BM_NONE: {
     		;
     	} break;
     	case BM_PRINT: {
-    		fprintf(stderr, "----------------------->GUS: PROCESS GET COMMANDD WITH KEY: %s\n", op.key);
+    		fprintf(stderr, "----------------------->GUS: PROCESS GET COMMANDD WITH KEY: %s (%"PRIu32")\n", key, op.key_hv);
     	} break;
     	case BM_DIRECT_FILE: {
  			bm_write_line_op(bm_output_fd, op);
@@ -189,26 +216,30 @@ void bm_record_read_op(char* key, size_t key_length) {
     	case BM_TO_QUEUE: {
     		bm_write_op_to_oq(&bm_oq, op);
     	} break;
+    	case BM_TO_LOCK_FREE_QUEUE: {
+    		bm_mpsc_oq_enqueue(op);
+    	} break;
     }
 }
 
 static
 void bm_record_write_op(char* command, char* key, size_t key_length) {
-	char* new_key = malloc(key_length);
-	strcpy(new_key, key);
-	bm_op_t op = {BM_WRITE_OP, new_key, key_length};
+	bm_op_t op = {BM_WRITE_OP, hash(key, key_length)};
 	switch(bm_type) {
 		case BM_NONE: {
     		;
     	} break;
     	case BM_PRINT: {
-    		fprintf(stderr, "----------------------->GUS: PROCESS %s COMMANDD WITH KEY: %s\n", command, op.key);
+    		fprintf(stderr, "----------------------->GUS: PROCESS %s COMMANDD WITH KEY: %s (%"PRIu32")\n", command, key, op.key_hv);
     	} break;
     	case BM_DIRECT_FILE: {
     		bm_write_line_op(bm_output_fd, op);
     	} break;
     	case BM_TO_QUEUE: {
     		bm_write_op_to_oq(&bm_oq, op);
+    	} break;
+    	case BM_TO_LOCK_FREE_QUEUE: {
+    		bm_mpsc_oq_enqueue(op);
     	} break;
     }
 }

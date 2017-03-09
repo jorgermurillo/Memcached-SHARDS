@@ -3204,9 +3204,9 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                 }
                 return;
             }
-
+            
             bm_record_read_op(key, nkey);
-       
+
             it = item_get(key, nkey, c);
             if (settings.detail_enabled) {
                 stats_prefix_record_get(key, nkey, NULL != it);
@@ -3403,9 +3403,9 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
         out_string(c, "CLIENT_ERROR bad command line format");
         return;
     }
-
+    
     bm_record_write_op("UPDATE", key, nkey);
-
+    
     /* Ubuntu 8.04 breaks when I pass exptime to safe_strtol */
     exptime = exptime_int;
 
