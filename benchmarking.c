@@ -1,5 +1,6 @@
 #include <mpscq.h>
 #include <mpsc.c>
+#include <zmq.h>
 
 typedef enum {
 	BM_NONE,
@@ -7,6 +8,7 @@ typedef enum {
 	BM_DIRECT_FILE,
 	BM_TO_QUEUE,
 	BM_TO_LOCK_FREE_QUEUE,
+	BM_TO_ZEROMQ,
 } bm_type_t;
 
 typedef enum {
@@ -81,7 +83,7 @@ bm_oq_item_t* bm_oq_pop(bm_oq_t* oq) {
 }
 
 // @ Gus: bm settings
-bm_type_t bm_type = BM_TO_LOCK_FREE_QUEUE;
+bm_type_t bm_type = BM_TO_ZEROMQ;
 
 char bm_output_filename[] = "benchmarking_output.txt";
 int  bm_output_fd = -1;
@@ -89,6 +91,8 @@ int  bm_output_fd = -1;
 bm_oq_t bm_oq;
 struct mpscq* bm_mpsc_oq;
 #define BM_MPSC_OQ_CAP 100
+void* zmq_context = NULL;
+void* zmq_sender = NULL;
 
 // @ Gus: bm functions
 static
@@ -119,6 +123,12 @@ void bm_init() {
     	} break;
     	case BM_TO_LOCK_FREE_QUEUE: {
     		bm_mpsc_oq = mpscq_create(NULL, BM_MPSC_OQ_CAP);
+    	} break;
+    	case BM_TO_ZEROMQ: {
+		    zmq_context = zmq_ctx_new ();
+		    zmq_sender = zmq_socket (zmq_context, ZMQ_PUB);
+		    int rc = zmq_bind(zmq_sender, "tcp://*:5555");
+		    fprintf (stderr, "Started zmq server...\n");
     	} break;
     }
 }
@@ -168,6 +178,9 @@ void bm_consume_ops() {
     			item = mpscq_dequeue(bm_mpsc_oq);
     		}
     	} break;
+    	case BM_TO_ZEROMQ: {
+    		;
+    	} break;
 	}
 }
 
@@ -177,7 +190,7 @@ struct event_base* bm_event_base;
 
 static
 void bm_clock_handler(evutil_socket_t fd, short what, void* args) {
-	fprintf(stderr, "Tick\n");
+	// fprintf(stderr, "Tick\n");
 	bm_consume_ops();
 }
 
@@ -225,6 +238,10 @@ void bm_record_read_op(char* key, size_t key_length) {
     	case BM_TO_LOCK_FREE_QUEUE: {
     		bm_mpsc_oq_enqueue(op);
     	} break;
+    	case BM_TO_ZEROMQ: {
+    		fprintf(stderr, "sending op: %d, hv: %"PRIu32"\n", op.type, op.key_hv);
+    		zmq_send(zmq_sender, &op, sizeof(bm_op_t), ZMQ_DONTWAIT);
+    	} break;
     }
 }
 
@@ -246,6 +263,10 @@ void bm_record_write_op(char* command, char* key, size_t key_length) {
     	} break;
     	case BM_TO_LOCK_FREE_QUEUE: {
     		bm_mpsc_oq_enqueue(op);
+    	} break;
+    	case BM_TO_ZEROMQ: {
+    		fprintf(stderr, "sending op: %d, hv: %"PRIu32"\n", op.type, op.key_hv);
+    		zmq_send(zmq_sender, &op, sizeof(bm_op_t), ZMQ_DONTWAIT);
     	} break;
     }
 }
