@@ -83,14 +83,14 @@ bm_oq_item_t* bm_oq_pop(bm_oq_t* oq) {
 }
 
 // @ Gus: bm settings
-bm_type_t bm_type = BM_TO_LOCK_FREE_QUEUE;
+bm_type_t bm_type = BM_TO_ZEROMQ;
 
 char bm_output_filename[] = "benchmarking_output.txt";
 int  bm_output_fd = -1;
 
 bm_oq_t bm_oq;
 struct mpscq* bm_mpsc_oq;
-#define BM_MPSC_OQ_CAP 100
+#define BM_MPSC_OQ_CAP 10000 // @ Gus: capacity must be set right becasuse mpsc is NOT a ring buffer
 void* zmq_context = NULL;
 void* zmq_sender = NULL;
 
@@ -134,11 +134,6 @@ void bm_init() {
 }
 
 static
-void bm_process_op(bm_op_t op) {
-	// bm_write_line_op(bm_output_fd, op);
-}
-
-static
 void bm_write_line_op(int fd, bm_op_t op) {
 	size_t str_buffer_length = 3 + 10;
 	char* str_buffer = malloc(str_buffer_length);
@@ -152,6 +147,12 @@ void bm_write_op_to_oq(bm_oq_t* oq, bm_op_t op) {
 	bm_oq_item_t* item = malloc_oq_item();
 	item->op = op;
 	bm_oq_push(oq, item);
+}
+
+static
+void bm_process_op(bm_op_t op) {
+	// bm_write_line_op(bm_output_fd, op);
+	// fprintf(stderr, "type: %d, key: %"PRIu32"\n", op.type, op.key_hv);
 }
 
 static
@@ -219,8 +220,8 @@ void* bm_loop_in_thread(void* args) {
 	bm_output_fd = open(bm_output_filename, 
 						O_WRONLY | O_CREAT | O_TRUNC,
 						S_IRUSR | S_IWUSR);
-	// bm_libevent_loop();
-	while(true) bm_consume_ops();
+	bm_libevent_loop();
+	// while(true) bm_consume_ops();
 	return NULL;
 }
 
