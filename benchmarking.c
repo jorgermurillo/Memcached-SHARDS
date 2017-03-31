@@ -83,7 +83,7 @@ bm_oq_item_t* bm_oq_pop(bm_oq_t* oq) {
 }
 
 // @ Gus: bm settings
-bm_type_t bm_type = BM_TO_ZEROMQ;
+bm_type_t bm_type = BM_TO_LOCK_FREE_QUEUE;
 
 char bm_output_filename[] = "benchmarking_output.txt";
 int  bm_output_fd = -1;
@@ -134,6 +134,11 @@ void bm_init() {
 }
 
 static
+void bm_process_op(bm_op_t op) {
+	// bm_write_line_op(bm_output_fd, op);
+}
+
+static
 void bm_write_line_op(int fd, bm_op_t op) {
 	size_t str_buffer_length = 3 + 10;
 	char* str_buffer = malloc(str_buffer_length);
@@ -164,7 +169,7 @@ void bm_consume_ops() {
     	case BM_TO_QUEUE: {
     		bm_oq_item_t* item = bm_oq_pop(&bm_oq);
 			while(NULL != item) {
-				bm_write_line_op(bm_output_fd, item->op);
+				bm_process_op(item->op);
 				free_oq_item(item);
 				item = bm_oq_pop(&bm_oq);
 			}
@@ -173,7 +178,7 @@ void bm_consume_ops() {
     		void* item = mpscq_dequeue(bm_mpsc_oq);
     		while(NULL != item) {
     			bm_op_t* op_ptr = item;
-    			bm_write_line_op(bm_output_fd, *op_ptr);
+    			bm_process_op(*op_ptr);
     			free(op_ptr);
     			item = mpscq_dequeue(bm_mpsc_oq);
     		}
@@ -214,8 +219,8 @@ void* bm_loop_in_thread(void* args) {
 	bm_output_fd = open(bm_output_filename, 
 						O_WRONLY | O_CREAT | O_TRUNC,
 						S_IRUSR | S_IWUSR);
-	bm_libevent_loop();
-	// while(true) bm_consume_ops();
+	// bm_libevent_loop();
+	while(true) bm_consume_ops();
 	return NULL;
 }
 
@@ -239,7 +244,7 @@ void bm_record_read_op(char* key, size_t key_length) {
     		bm_mpsc_oq_enqueue(op);
     	} break;
     	case BM_TO_ZEROMQ: {
-    		fprintf(stderr, "sending op: %d, hv: %"PRIu32"\n", op.type, op.key_hv);
+    		// fprintf(stderr, "sending op: %d, hv: %"PRIu32"\n", op.type, op.key_hv);
     		zmq_send(zmq_sender, &op, sizeof(bm_op_t), ZMQ_DONTWAIT);
     	} break;
     }
@@ -265,7 +270,7 @@ void bm_record_write_op(char* command, char* key, size_t key_length) {
     		bm_mpsc_oq_enqueue(op);
     	} break;
     	case BM_TO_ZEROMQ: {
-    		fprintf(stderr, "sending op: %d, hv: %"PRIu32"\n", op.type, op.key_hv);
+    		// fprintf(stderr, "sending op: %d, hv: %"PRIu32"\n", op.type, op.key_hv);
     		zmq_send(zmq_sender, &op, sizeof(bm_op_t), ZMQ_DONTWAIT);
     	} break;
     }
