@@ -48,7 +48,7 @@
 #include <sysexits.h>
 #include <stddef.h>
 
-#include <benchmarking.c>
+#include "k_v_benchmark.c"
 
 /* FreeBSD 4.x doesn't have IOV_MAX exposed. */
 #ifndef IOV_MAX
@@ -3204,8 +3204,11 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                 }
                 return;
             }
-            
-            bm_record_read_op(key, nkey);
+
+            {
+                bm_op_t op = {BM_READ_OP, hash(key, nkey)};
+                bm_record_op(op);
+            }
 
             it = item_get(key, nkey, c);
             if (settings.detail_enabled) {
@@ -3404,7 +3407,10 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
         return;
     }
     
-    bm_record_write_op("UPDATE", key, nkey);
+    {
+        bm_op_t op = {BM_WRITE_OP, hash(key, nkey)};
+        bm_record_op(op);
+    }
     
     /* Ubuntu 8.04 breaks when I pass exptime to safe_strtol */
     exptime = exptime_int;

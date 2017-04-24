@@ -1,25 +1,7 @@
-#include <mpscq.h>
-#include <mpsc.c>
+#include "k_v_benchmark.h"
+#include "mpscq.h"
+#include "mpsc.c"
 #include <zmq.h>
-
-typedef enum {
-	BM_NONE,
-	BM_PRINT,
-	BM_DIRECT_FILE,
-	BM_TO_QUEUE,
-	BM_TO_LOCK_FREE_QUEUE,
-	BM_TO_ZEROMQ,
-} bm_type_t;
-
-typedef enum {
-    BM_READ_OP,
-    BM_WRITE_OP,
-} bm_op_type_t;
-
-typedef struct {
-    bm_op_type_t type;
-    uint32_t	 key_hv;
-} bm_op_t;
 
 // @ Gus: OP QUEUE
 typedef struct bm_oq_item_t bm_oq_item_t;
@@ -137,7 +119,7 @@ static
 void bm_write_line_op(int fd, bm_op_t op) {
 	size_t str_buffer_length = 3 + 10;
 	char* str_buffer = malloc(str_buffer_length);
-	sprintf(str_buffer, "%d %"PRIu32"\n", op.type, op.key_hv);
+	sprintf(str_buffer, "%d %"PRIu64"\n", op.type, op.key_hv);
 	write(fd, str_buffer, strlen(str_buffer));
 	free(str_buffer);
 }
@@ -152,7 +134,7 @@ void bm_write_op_to_oq(bm_oq_t* oq, bm_op_t op) {
 static
 void bm_process_op(bm_op_t op) {
 	// bm_write_line_op(bm_output_fd, op);
-	// fprintf(stderr, "type: %d, key: %"PRIu32"\n", op.type, op.key_hv);
+	// fprintf(stderr, "type: %d, key: %"PRIu64"\n", op.type, op.key_hv);
 }
 
 static
@@ -226,6 +208,32 @@ void* bm_loop_in_thread(void* args) {
 }
 
 static
+void bm_record_op(bm_op_t op) {
+    char* command = op.type == BM_READ_OP ? "GET" : "SET";
+    switch(bm_type) {
+        case BM_NONE: {
+            ;
+        } break;
+        case BM_PRINT: {
+            fprintf(stderr, "----------------------->GUS: PROCESS %s COMMAND WITH KEY HASH: %"PRIu64"\n", command, op.key_hv);
+        } break;
+        case BM_DIRECT_FILE: {
+            bm_write_line_op(bm_output_fd, op);
+        } break;
+        case BM_TO_QUEUE: {
+            bm_write_op_to_oq(&bm_oq, op);
+        } break;
+        case BM_TO_LOCK_FREE_QUEUE: {
+            bm_mpsc_oq_enqueue(op);
+        } break;
+        case BM_TO_ZEROMQ: {
+            // fprintf(stderr, "sending op: %d, hv: %"PRIu64"\n", op.type, op.key_hv);
+            zmq_send(zmq_sender, &op, sizeof(bm_op_t), ZMQ_DONTWAIT);
+        } break;
+    }
+}
+/*
+static
 void bm_record_read_op(char* key, size_t key_length) {
 	bm_op_t op = {BM_READ_OP, hash(key, key_length)};
     switch(bm_type) {
@@ -233,7 +241,7 @@ void bm_record_read_op(char* key, size_t key_length) {
     		;
     	} break;
     	case BM_PRINT: {
-    		fprintf(stderr, "----------------------->GUS: PROCESS GET COMMANDD WITH KEY: %s (%"PRIu32")\n", key, op.key_hv);
+    		fprintf(stderr, "----------------------->GUS: PROCESS GET COMMANDD WITH KEY: %s (%"PRIu64")\n", key, op.key_hv);
     	} break;
     	case BM_DIRECT_FILE: {
  			bm_write_line_op(bm_output_fd, op);
@@ -245,7 +253,7 @@ void bm_record_read_op(char* key, size_t key_length) {
     		bm_mpsc_oq_enqueue(op);
     	} break;
     	case BM_TO_ZEROMQ: {
-    		// fprintf(stderr, "sending op: %d, hv: %"PRIu32"\n", op.type, op.key_hv);
+    		// fprintf(stderr, "sending op: %d, hv: %"PRIu64"\n", op.type, op.key_hv);
     		zmq_send(zmq_sender, &op, sizeof(bm_op_t), ZMQ_DONTWAIT);
     	} break;
     }
@@ -259,7 +267,7 @@ void bm_record_write_op(char* command, char* key, size_t key_length) {
     		;
     	} break;
     	case BM_PRINT: {
-    		fprintf(stderr, "----------------------->GUS: PROCESS %s COMMANDD WITH KEY: %s (%"PRIu32")\n", command, key, op.key_hv);
+    		fprintf(stderr, "----------------------->GUS: PROCESS %s COMMANDD WITH KEY: %s (%"PRIu64")\n", command, key, op.key_hv);
     	} break;
     	case BM_DIRECT_FILE: {
     		bm_write_line_op(bm_output_fd, op);
@@ -271,8 +279,9 @@ void bm_record_write_op(char* command, char* key, size_t key_length) {
     		bm_mpsc_oq_enqueue(op);
     	} break;
     	case BM_TO_ZEROMQ: {
-    		// fprintf(stderr, "sending op: %d, hv: %"PRIu32"\n", op.type, op.key_hv);
+    		// fprintf(stderr, "sending op: %d, hv: %"PRIu64"\n", op.type, op.key_hv);
     		zmq_send(zmq_sender, &op, sizeof(bm_op_t), ZMQ_DONTWAIT);
     	} break;
     }
 }
+*/
