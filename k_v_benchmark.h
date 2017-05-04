@@ -1,7 +1,13 @@
 #ifndef __K_V_BENCHMARK_H
 #define __K_V_BENCHMARK_H
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <event.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 typedef enum {
 	BM_NONE,
@@ -21,5 +27,9 @@ typedef struct {
     bm_op_type_t type;
     uint64_t	 key_hv;
 } bm_op_t;
+
+void bm_init();
+void* bm_loop_in_thread(void* args);
+void bm_record_op(bm_op_t op);
 
 #endif

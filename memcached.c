@@ -48,7 +48,7 @@
 #include <sysexits.h>
 #include <stddef.h>
 
-#include "k_v_benchmark.c"
+#include "k_v_benchmark.h"
 
 /* FreeBSD 4.x doesn't have IOV_MAX exposed. */
 #ifndef IOV_MAX
