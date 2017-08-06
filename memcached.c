@@ -3480,7 +3480,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
         bm_op_t op = {BM_WRITE_OP, hash(key, nkey), it->slabs_clsid};
         bm_record_op(op);
     }
-    printf("Slabs UPDATECOMMAND:%"PRIu8"\n", it->slabs_clsid);
+    //printf("Slabs UPDATECOMMAND:%"PRIu8"\n", it->slabs_clsid);
     ITEM_set_cas(it, req_cas_id);
 
     c->item = it;

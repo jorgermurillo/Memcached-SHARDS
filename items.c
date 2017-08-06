@@ -163,7 +163,7 @@ item *do_item_alloc(char *key, const size_t nkey, const unsigned int flags,
     if (id == 0)
         return 0;
 
-    printf("Slab ALLOC: %u\n", id);
+    //printf("Slab ALLOC: %u\n", id);
     /* If no memory is available, attempt a direct LRU juggle/eviction */
     /* This is a race in order to simplify lru_pull_tail; in cases where
      * locked items are on the tail, you want them to fall out and cause
@@ -237,7 +237,7 @@ item *do_item_alloc(char *key, const size_t nkey, const unsigned int flags,
         id |= COLD_LRU;
     }
     it->slabs_clsid = id;
-    printf("Slab ALLOC_2: %u\n", id);
+    //printf("Slab ALLOC_2: %u\n", id);
     DEBUG_REFCNT(it, '*');
     it->it_flags |= settings.use_cas ? ITEM_CAS : 0;
     it->nkey = nkey;

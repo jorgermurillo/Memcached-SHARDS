@@ -78,7 +78,8 @@ int  bm_output_fd = -1;
 bm_oq_t bm_oq;
 
 SHARDS *shards_array[MAX_NUMBER_OF_SLAB_CLASSES];
-SHARDS *shards2;
+unsigned int item_sizes[MAX_NUMBER_OF_SLAB_CLASSES];
+//SHARDS *shards2;
 
 int number_of_objects=0;
 
@@ -126,34 +127,31 @@ void bm_init(uint32_t *slab_sizes, double factor) {
         if (size % CHUNK_ALIGN_BYTES)
             size += CHUNK_ALIGN_BYTES - (size % CHUNK_ALIGN_BYTES);
 
-        //slabclass[i].size = size;
-        //slabclass[i].perslab = settings.slab_page_size / slabclass[i].size;
-        fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
+      
+        
         //initializa each SHARDS struct in the shards array. Index is [i-1] because the numbering starts at 
         // one and no at zero.
         shards_array[i-1] = SHARDS_fixed_size_init(16000, 10, Uint64);
-
+        item_sizes[i-1] = size;
+        //fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
         if (slab_sizes == NULL)
             size *= factor;
 
-        if (settings.verbose > 1) {
-            //fprintf(stderr, "slab class %3d: chunk size %9u perslab %7u\n",
-            //        i, slabclass[i].size, slabclass[i].perslab);
-        }
+       
     }
 
     power_largest = i;
     NUMBER_OF_SHARDS = i;
     size = settings.slab_chunk_size_max;
     shards_array[i-1] = SHARDS_fixed_size_init(16000, 10, Uint64);
-    //slabclass[power_largest].perslab = settings.slab_page_size / settings.slab_chunk_size_max;
-    fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
+    item_sizes[i-1] = size;
+    //fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
     
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
     for(int j=0; j < NUMBER_OF_SHARDS; j++){
-        printf("R Value %2d: %1.3f\n",j, shards_array[j]->R);
+        printf("R Value %2d: %1.3f\n",j+1, shards_array[j]->R);
 
     }
 
@@ -205,14 +203,15 @@ void bm_write_op_to_oq(bm_oq_t* oq, bm_op_t op) {
 static
 void bm_process_op(bm_op_t op) {
 	// bm_write_line_op(bm_output_fd, op);
-
+    unsigned int slab_ID = 0;
     uint64_t *object = malloc(sizeof(uint64_t));
     *object = op.key_hv;
 
-    printf("Slab: %"PRIu8"\n", op.slab_id);
-
+    printf("Slab ID: %"PRIu8"\n", op.slab_id);
+    slab_ID = op.slab_id - 128;
+    printf("Slab new ID: %u\n", slab_ID);
     //printf("PROCESS_OP Max Set Size: %u\n", shards2->S_max);
-    SHARDS_feed_obj(shards2 ,object , sizeof(uint64_t));
+    SHARDS_feed_obj(shards_array[slab_ID -1] ,object , sizeof(uint64_t));
     number_of_objects ++;
     //printf("Number of objects received: %d\n", number_of_objects );
 
@@ -221,26 +220,41 @@ void bm_process_op(bm_op_t op) {
     fprintf(stderr, "type: %d, key: %"PRIu64"\n", op.type, op.key_hv);
 
     if(number_of_objects==OBJECT_LIMIT){
-        printf("CALCULATING MRC...\n");
-        GHashTable *mrc = MRC_fixed_size_empty(shards2);
+        printf("CALCULATING Miss Rate Curves...\n");
 
-        GList *keys = g_hash_table_get_keys(mrc);
-        keys = g_list_sort(keys, (GCompareFunc) intcmp);
-        printf("WRITING MRC FILE...\n");
-        while(1){
-            //printf("key: %7d  Value: %1.6f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
-            fprintf(mrc_file,"%7d,%1.7f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
+        for( int k =0; k< NUMBER_OF_SHARDS; k++){
 
-            if(keys->next==NULL)
-                break;
-            keys=keys->next;
+            if(shards_array[k]->total_objects !=0 ){
+                fprintf(stderr, "Calculating MRC of Slab %2d (size %2u)", k+1, item_sizes[k]);
+
+                
+                GHashTable *mrc = MRC_fixed_size_empty(shards_array[k]);
+
+                GList *keys = g_hash_table_get_keys(mrc);
+                keys = g_list_sort(keys, (GCompareFunc) intcmp);
+                printf("WRITING MRC FILE...\n");
+                while(1){
+                    //printf("key: %7d  Value: %1.6f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
+                    fprintf(mrc_file,"%7d,%1.7f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
+
+                    if(keys->next==NULL)
+                        break;
+                    keys=keys->next;
+                }
+
+                fclose(mrc_file);
+                printf("MRC FILE WRITTEN! :D\n");
+                keys = g_list_first(keys);
+                g_list_free(keys);
+                g_hash_table_destroy(mrc);
+
+            }
+
+            
+
         }
 
-        fclose(mrc_file);
-        printf("MRC FILE WRITTEN! :D\n");
-        keys = g_list_first(keys);
-        g_list_free(keys);
-        g_hash_table_destroy(mrc);
+        
 
     }
     
