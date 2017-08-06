@@ -8,6 +8,8 @@
 #include <event.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <zmq.h>
+#include "SHARDS.h"
 
 typedef enum {
 	BM_NONE,
@@ -26,9 +28,10 @@ typedef enum {
 typedef struct {
     bm_op_type_t type;
     uint64_t	 key_hv;
+    uint8_t slab_id;
 } bm_op_t;
 
-void bm_init();
+void bm_init(uint32_t *buffer, double factor);
 void* bm_loop_in_thread(void* args);
 void bm_record_op(bm_op_t op);
 

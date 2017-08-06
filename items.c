@@ -139,6 +139,7 @@ static unsigned int noexp_lru_size(int slabs_clsid) {
 static size_t item_make_header(const uint8_t nkey, const unsigned int flags, const int nbytes,
                      char *suffix, uint8_t *nsuffix) {
     /* suffix is defined at 40 chars elsewhere.. */
+
     *nsuffix = (uint8_t) snprintf(suffix, 40, " %u %d\r\n", flags, nbytes - 2);
     return sizeof(item) + nkey + *nsuffix + nbytes;
 }
@@ -154,14 +155,15 @@ item *do_item_alloc(char *key, const size_t nkey, const unsigned int flags,
         return 0;
 
     size_t ntotal = item_make_header(nkey + 1, flags, nbytes, suffix, &nsuffix);
+
     if (settings.use_cas) {
         ntotal += sizeof(uint64_t);
     }
-
     unsigned int id = slabs_clsid(ntotal);
     if (id == 0)
         return 0;
 
+    printf("Slab ALLOC: %u\n", id);
     /* If no memory is available, attempt a direct LRU juggle/eviction */
     /* This is a race in order to simplify lru_pull_tail; in cases where
      * locked items are on the tail, you want them to fall out and cause
@@ -235,7 +237,7 @@ item *do_item_alloc(char *key, const size_t nkey, const unsigned int flags,
         id |= COLD_LRU;
     }
     it->slabs_clsid = id;
-
+    printf("Slab ALLOC_2: %u\n", id);
     DEBUG_REFCNT(it, '*');
     it->it_flags |= settings.use_cas ? ITEM_CAS : 0;
     it->nkey = nkey;

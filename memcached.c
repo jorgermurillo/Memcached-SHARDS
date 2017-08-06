@@ -49,6 +49,7 @@
 #include <stddef.h>
 
 #include "k_v_benchmark.h"
+#include "SHARDS.h"
 
 /* FreeBSD 4.x doesn't have IOV_MAX exposed. */
 #ifndef IOV_MAX
@@ -61,6 +62,10 @@
 #endif
 #endif
 #endif
+
+
+
+
 
 /*
  * forward declarations
@@ -3204,9 +3209,9 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                 }
                 return;
             }
-
+            
             {
-                bm_op_t op = {BM_READ_OP, hash(key, nkey)};
+                bm_op_t op = {BM_READ_OP, hash(key, nkey), nkey};
                 bm_record_op(op);
             }
 
@@ -3388,6 +3393,8 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     uint64_t req_cas_id=0;
     item *it;
 
+    
+    
     assert(c != NULL);
 
     set_noreply_maybe(c, tokens, ntokens);
@@ -3407,10 +3414,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
         return;
     }
     
-    {
-        bm_op_t op = {BM_WRITE_OP, hash(key, nkey)};
-        bm_record_op(op);
-    }
+    
     
     /* Ubuntu 8.04 breaks when I pass exptime to safe_strtol */
     exptime = exptime_int;
@@ -3440,6 +3444,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     }
 
     it = item_alloc(key, nkey, flags, realtime(exptime), vlen);
+    
 
     if (it == 0) {
         enum store_item_type status;
@@ -3468,6 +3473,14 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
 
         return;
     }
+
+
+
+    {
+        bm_op_t op = {BM_WRITE_OP, hash(key, nkey), it->slabs_clsid};
+        bm_record_op(op);
+    }
+    printf("Slabs UPDATECOMMAND:%"PRIu8"\n", it->slabs_clsid);
     ITEM_set_cas(it, req_cas_id);
 
     c->item = it;
@@ -5665,6 +5678,7 @@ static bool _parse_slab_sizes(char *s, uint32_t *slab_sizes) {
 }
 
 int main (int argc, char **argv) {
+    
     int c;
     bool lock_memory = false;
     bool do_daemonize = false;
@@ -5680,6 +5694,10 @@ int main (int argc, char **argv) {
     int retval = EXIT_SUCCESS;
     /* listening sockets */
     static int *l_socket = NULL;
+
+
+    
+
 
     /* udp socket */
     static int *u_socket = NULL;
@@ -6366,7 +6384,7 @@ int main (int argc, char **argv) {
     }
     /* start up worker threads if MT mode */
     memcached_thread_init(settings.num_threads);
-    bm_init();
+    bm_init( use_slab_sizes ? slab_sizes : NULL, settings.factor);
     
     if (start_assoc_maintenance_thread() == -1) {
         exit(EXIT_FAILURE);
@@ -6472,8 +6490,13 @@ int main (int argc, char **argv) {
     /* Initialize the uriencode lookup table. */
     uriencode_init();
     
+    //TEST
+    //char* message_arg = "Mensaje de prueba";
+    SHARDS *shards = SHARDS_fixed_size_init(32000, 10, Uint64);
+
     pthread_t bm_thread;
-    pthread_create(&bm_thread, NULL, bm_loop_in_thread, NULL);
+    //pthread_create(&bm_thread, NULL, bm_loop_in_thread, NULL);
+    pthread_create(&bm_thread, NULL, bm_loop_in_thread, shards);
 
     /* enter the event loop */
     if (event_base_loop(main_base, 0) != 0) {

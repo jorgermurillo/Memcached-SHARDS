@@ -4,6 +4,10 @@ noinst_PROGRAMS = memcached-debug sizes testapp timedrun
 
 BUILT_SOURCES=
 
+CC = gcc -std=gnu11
+
+LIBS = -lzmq -levent -lpthread 
+
 testapp_SOURCES = testapp.c util.c util.h
 
 timedrun_SOURCES = timedrun.c
@@ -21,7 +25,14 @@ memcached_SOURCES = memcached.c memcached.h \
                     trace.h cache.h sasl_defs.h \
                     bipbuffer.c bipbuffer.h \
                     logger.c logger.h \
-                    crawler.c crawler.h
+                    crawler.c crawler.h \
+                    SHARDS.c SHARDS.h \
+                    splay.c splay.h \
+                    murmurhash3.c murmurhash3.h \
+                    k_v_benchmark.c k_v_benchmark.h \
+                    mpsc.c mpsc.h 
+
+CFLAGS = -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -L/usr/lib -lm -lglib-2.0
 
 if BUILD_CACHE
 memcached_SOURCES += cache.c
