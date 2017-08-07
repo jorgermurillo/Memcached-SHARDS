@@ -80,12 +80,15 @@ bm_oq_t bm_oq;
 SHARDS *shards_array[MAX_NUMBER_OF_SLAB_CLASSES];
 unsigned int item_sizes[MAX_NUMBER_OF_SLAB_CLASSES];
 //SHARDS *shards2;
-
+//Which epoch we are working on.
+unsigned int epoch =1;
 int number_of_objects=0;
 
 int OBJECT_LIMIT= 611968;
 
 int NUMBER_OF_SHARDS =0;
+char* mrc_path = "./Results/";
+char file_name[40];
 
 FILE *mrc_file;
 
@@ -105,7 +108,7 @@ bool bm_mpsc_oq_enqueue(bm_op_t op) {
 
 void bm_init(uint32_t *slab_sizes, double factor) {
 
-    mrc_file = fopen("Memcached_YT.dat","w");
+    
     //shards2 = SHARDS_fixed_size_init(16000, 10, Uint64);
 	if (bm_type == BM_NONE) return;
 
@@ -223,15 +226,19 @@ void bm_process_op(bm_op_t op) {
         printf("CALCULATING Miss Rate Curves...\n");
 
         for( int k =0; k< NUMBER_OF_SHARDS; k++){
-
+            
             if(shards_array[k]->total_objects !=0 ){
-                fprintf(stderr, "Calculating MRC of Slab %2d (size %2u)", k+1, item_sizes[k]);
+                snprintf(file_name,40,"%sMRC_SLAB_%02d_%05d.csv",mrc_path, k+1, epoch);
+                fprintf(stderr, "Calculating MRC of Slab %2d (size %2u)\n", k+1, item_sizes[k]);
 
                 
                 GHashTable *mrc = MRC_fixed_size_empty(shards_array[k]);
 
                 GList *keys = g_hash_table_get_keys(mrc);
                 keys = g_list_sort(keys, (GCompareFunc) intcmp);
+
+                mrc_file = fopen(file_name,"w");
+
                 printf("WRITING MRC FILE...\n");
                 while(1){
                     //printf("key: %7d  Value: %1.6f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
@@ -253,8 +260,8 @@ void bm_process_op(bm_op_t op) {
             
 
         }
-
-        
+        number_of_objects = 0;
+        epoch++;
 
     }
     

@@ -3210,10 +3210,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                 return;
             }
             
-            {
-                bm_op_t op = {BM_READ_OP, hash(key, nkey), nkey};
-                bm_record_op(op);
-            }
+
 
             it = item_get(key, nkey, c);
             if (settings.detail_enabled) {
@@ -3378,6 +3375,11 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
         out_of_memory(c, "SERVER_ERROR out of memory writing get response");
     }
     else {
+        {   
+                
+                bm_op_t op = {BM_READ_OP, hash(key, nkey), it->slabs_clsid};
+                bm_record_op(op);
+        }
         conn_set_state(c, conn_mwrite);
         c->msgcurr = 0;
     }
