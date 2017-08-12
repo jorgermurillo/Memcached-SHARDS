@@ -70,7 +70,10 @@ bm_oq_item_t* bm_oq_pop(bm_oq_t* oq) {
 }
 
 // @ Gus: bm settings
-bm_type_t bm_type = BM_TO_QUEUE; //BM_TO_LOCK_FREE_QUEUE;
+bm_type_t bm_type = BM_TO_QUEUE; 
+//bm_type_t bm_type = BM_TO_ZEROMQ;
+//bm_type_t bm_type = BM_TO_LOCK_FREE_QUEUE;
+
 
 char bm_output_filename[] = "benchmarking_output.txt";
 int  bm_output_fd = -1;
@@ -116,7 +119,8 @@ void bm_init(uint32_t *slab_sizes, double factor) {
     //JORGE: Initializing a SHARDS struct for each slab.
     int power_largest;
     int i = POWER_SMALLEST - 1;
-    unsigned int size = sizeof(item) + settings.chunk_size;
+    unsigned int size = sizeof(item) + settings.chunk_size; 
+    printf("SIZE OF ITEM: %u\n", size);
 
     while (++i < MAX_NUMBER_OF_SLAB_CLASSES-1) {
         if (slab_sizes != NULL) {
@@ -249,8 +253,13 @@ void bm_process_op(bm_op_t op) {
                     keys=keys->next;
                 }
 
+
+
                 fclose(mrc_file);
                 printf("MRC FILE WRITTEN! :D\n");
+
+                printf("R Value:%f\n", shards_array[k]->R);
+                printf("T Value:%"PRIu64"\n", shards_array[k]->T);
                 keys = g_list_first(keys);
                 g_list_free(keys);
                 g_hash_table_destroy(mrc);
