@@ -70,8 +70,8 @@ bm_oq_item_t* bm_oq_pop(bm_oq_t* oq) {
 }
 
 // @ Gus: bm settings
-bm_type_t bm_type = BM_TO_QUEUE; 
-//bm_type_t bm_type = BM_TO_ZEROMQ;
+//bm_type_t bm_type = BM_TO_QUEUE; 
+bm_type_t bm_type = BM_TO_ZEROMQ;
 //bm_type_t bm_type = BM_TO_LOCK_FREE_QUEUE;
 
 
@@ -87,7 +87,7 @@ unsigned int item_sizes[MAX_NUMBER_OF_SLAB_CLASSES];
 unsigned int epoch =1;
 int number_of_objects=0;
 
-int OBJECT_LIMIT= 611968;
+int OBJECT_LIMIT= 2000000;
 
 int NUMBER_OF_SHARDS =0;
 char* mrc_path = "./Results/";
@@ -120,7 +120,7 @@ void bm_init(uint32_t *slab_sizes, double factor) {
     int power_largest;
     int i = POWER_SMALLEST - 1;
     unsigned int size = sizeof(item) + settings.chunk_size; 
-    printf("SIZE OF ITEM: %u\n", size);
+    //printf("SIZE OF ITEM: %u\n", size);
 
     while (++i < MAX_NUMBER_OF_SLAB_CLASSES-1) {
         if (slab_sizes != NULL) {
@@ -214,9 +214,9 @@ void bm_process_op(bm_op_t op) {
     uint64_t *object = malloc(sizeof(uint64_t));
     *object = op.key_hv;
 
-    printf("Slab ID: %"PRIu8"\n", op.slab_id);
+    //printf("Slab ID: %"PRIu8"\n", op.slab_id);
     slab_ID = op.slab_id - 128;
-    printf("Slab new ID: %u\n", slab_ID);
+    //printf("Slab new ID: %u\n", slab_ID);
     //printf("PROCESS_OP Max Set Size: %u\n", shards2->S_max);
     SHARDS_feed_obj(shards_array[slab_ID -1] ,object , sizeof(uint64_t));
     number_of_objects ++;
@@ -224,16 +224,16 @@ void bm_process_op(bm_op_t op) {
 
     //printf("%d\n", (shards2)->num_obj);
 
-    fprintf(stderr, "type: %d, key: %"PRIu64"\n", op.type, op.key_hv);
+    //fprintf(stderr, "type: %d, key: %"PRIu64"\n", op.type, op.key_hv);
 
     if(number_of_objects==OBJECT_LIMIT){
-        printf("CALCULATING Miss Rate Curves...\n");
+        //printf("CALCULATING Miss Rate Curves...\n");
 
         for( int k =0; k< NUMBER_OF_SHARDS; k++){
             
             if(shards_array[k]->total_objects !=0 ){
                 snprintf(file_name,40,"%sMRC_SLAB_%02d_%05d.csv",mrc_path, k+1, epoch);
-                fprintf(stderr, "Calculating MRC of Slab %2d (size %2u)\n", k+1, item_sizes[k]);
+                //fprintf(stderr, "Calculating MRC of Slab %2d (size %2u)\n", k+1, item_sizes[k]);
 
                 
                 GHashTable *mrc = MRC_fixed_size_empty(shards_array[k]);
@@ -243,7 +243,7 @@ void bm_process_op(bm_op_t op) {
 
                 mrc_file = fopen(file_name,"w");
 
-                printf("WRITING MRC FILE...\n");
+                //printf("WRITING MRC FILE...\n");
                 while(1){
                     //printf("key: %7d  Value: %1.6f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
                     fprintf(mrc_file,"%7d,%1.7f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
@@ -256,10 +256,10 @@ void bm_process_op(bm_op_t op) {
 
 
                 fclose(mrc_file);
-                printf("MRC FILE WRITTEN! :D\n");
+                //printf("MRC FILE WRITTEN! :D\n");
 
-                printf("R Value:%f\n", shards_array[k]->R);
-                printf("T Value:%"PRIu64"\n", shards_array[k]->T);
+                //printf("R Value:%f\n", shards_array[k]->R);
+                //printf("T Value:%"PRIu64"\n", shards_array[k]->T);
                 keys = g_list_first(keys);
                 g_list_free(keys);
                 g_hash_table_destroy(mrc);
