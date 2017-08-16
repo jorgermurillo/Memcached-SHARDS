@@ -3210,7 +3210,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                 return;
             }
             
-
+            
 
             it = item_get(key, nkey, c);
             if (settings.detail_enabled) {
@@ -3218,6 +3218,12 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
             }
             if (it) {
                 if (i >= c->isize) {
+
+                    {
+                        bm_op_t op = {BM_READ_OP, hash(key, nkey), it->slabs_clsid};
+                        bm_record_op(op);
+                    }
+
                     item **new_list = realloc(c->ilist, sizeof(item *) * c->isize * 2);
                     if (new_list) {
                         c->isize *= 2;
@@ -3231,6 +3237,8 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                     }
                 }
 
+
+                
                 /*
                  * Construct the response. Each hit adds three elements to the
                  * outgoing data list:
@@ -3355,6 +3363,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
 
     } while(key_token->value != NULL);
 
+            
     c->icurr = c->ilist;
     c->ileft = i;
     if (return_cas) {
@@ -3375,14 +3384,11 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
         out_of_memory(c, "SERVER_ERROR out of memory writing get response");
     }
     else {
-        {   
-                
-                bm_op_t op = {BM_READ_OP, hash(key, nkey), it->slabs_clsid};
-                bm_record_op(op);
-        }
+        
         conn_set_state(c, conn_mwrite);
         c->msgcurr = 0;
     }
+    
 }
 
 static void process_update_command(conn *c, token_t *tokens, const size_t ntokens, int comm, bool handle_cas) {

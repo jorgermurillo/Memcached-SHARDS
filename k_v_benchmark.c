@@ -70,8 +70,9 @@ bm_oq_item_t* bm_oq_pop(bm_oq_t* oq) {
 }
 
 // @ Gus: bm settings
-//bm_type_t bm_type = BM_TO_QUEUE; 
-bm_type_t bm_type = BM_TO_ZEROMQ;
+
+bm_type_t bm_type = BM_TO_QUEUE; 
+//bm_type_t bm_type = BM_TO_ZEROMQ;
 //bm_type_t bm_type = BM_TO_LOCK_FREE_QUEUE;
 
 
@@ -87,7 +88,7 @@ unsigned int item_sizes[MAX_NUMBER_OF_SLAB_CLASSES];
 unsigned int epoch =1;
 int number_of_objects=0;
 
-int OBJECT_LIMIT= 2000000;
+int OBJECT_LIMIT= 1000000;
 
 int NUMBER_OF_SHARDS =0;
 char* mrc_path = "./Results/";

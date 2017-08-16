@@ -1,5 +1,15 @@
 # Memcached
 
+After installing zeromq, if you get an error like:
+
+	Error: libzmq.so.5: cannot open shared object file: No such file or directory
+
+try typing
+
+ 	$ export LD_LIBRARY_PATH=/usr/local/lib
+
+ on the terminal.
+
 ## Dependencies
 
 * libevent, http://www.monkey.org/~provos/libevent/ (libevent-dev)
