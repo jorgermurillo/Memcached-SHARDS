@@ -3185,7 +3185,7 @@ static void process_stat(conn *c, token_t *tokens, const size_t ntokens) {
         c->stats.buffer = NULL;
     }
 }
-
+//unsigned int number_gets =0;
 /* ntokens is overwritten here... shrug.. */
 static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens, bool return_cas) {
     char *key;
@@ -3195,6 +3195,8 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
     token_t *key_token = &tokens[KEY_TOKEN];
     char *suffix;
     assert(c != NULL);
+
+    
 
     do {
         while(key_token->length != 0) {
@@ -3219,7 +3221,9 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
             if (it) {
                 if (i >= c->isize) {
 
-                    {
+                    {   
+                        //number_gets++;
+                        //printf("Gets: %u\n", number_gets);
                         bm_op_t op = {BM_READ_OP, hash(key, nkey), it->slabs_clsid};
                         bm_record_op(op);
                     }
@@ -3390,7 +3394,7 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
     }
     
 }
-
+//unsigned int number_sets =0;
 static void process_update_command(conn *c, token_t *tokens, const size_t ntokens, int comm, bool handle_cas) {
     char *key;
     size_t nkey;
@@ -3401,7 +3405,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     uint64_t req_cas_id=0;
     item *it;
 
-    
+         
     
     assert(c != NULL);
 
@@ -3484,7 +3488,9 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
 
 
 
-    {
+    {   
+        //number_sets++;
+        //printf("Sets: %u\n", number_sets);
         bm_op_t op = {BM_WRITE_OP, hash(key, nkey), it->slabs_clsid};
         bm_record_op(op);
     }
@@ -5685,8 +5691,14 @@ static bool _parse_slab_sizes(char *s, uint32_t *slab_sizes) {
     return true;
 }
 
+
+
 int main (int argc, char **argv) {
-    
+    //Jorge: Command line arguments for SHARDS
+    int max_obj=1000000;
+    bm_type_t queue_type =0;
+    double R_initial = 0.1;    
+
     int c;
     bool lock_memory = false;
     bool do_daemonize = false;
@@ -5819,13 +5831,24 @@ int main (int argc, char **argv) {
           "F"   /* Disable flush_all */
           "X"   /* Disable dump commands */
           "o:"  /* Extended generic options */
+          "G:"  /* R_init value for the SHARDS instances */
+          "Q:"  /* Queue */
+          "O:"  /* max objects between epochs in SHARDS */
         ))) {
         switch (c) {
+        case 'O':
+            max_obj = strtol(optarg,NULL,10);
+            break;
+        case 'Q':
+            queue_type = strtol(optarg,NULL,10);
+            break;
         case 'A':
             /* enables "shutdown" command */
             settings.shutdown_command = true;
             break;
-
+        case 'G':
+            R_initial = strtod(optarg,NULL);
+            break;
         case 'a':
             /* access for unix domain socket, as octal mask (like chmod)*/
             settings.access= strtol(optarg,NULL,8);
@@ -6212,7 +6235,18 @@ int main (int argc, char **argv) {
             return 1;
         }
     }
-
+    if(max_obj<=0){
+        fprintf(stderr, "The number of objects to read in SHARDS between each epoch must be greater than 0.\n" );
+        return 1;
+    }
+    if(R_initial<=0 || R_initial>1){
+        fprintf(stderr, "The initial values of R for SHARDS must lie in the range (0,1]\n" );
+        return 1;
+    }
+    if(queue_type <0 || queue_type>5){
+        fprintf(stderr, "The values for Q must be between 0 and 5 where:\n0 BM_NONE\n1 BM_PRINT\n2 BM_DIRECT_FILE\n3 BM_TO_QUEUE\n4 BM_TO_LOCK_FREE_QUEUE\n5 BM_TO_ZEROMQ\n");
+        return 1;
+    }
     if (settings.slab_chunk_size_max > settings.item_size_max) {
         fprintf(stderr, "slab_chunk_max (bytes: %d) cannot be larger than -I (item_size_max %d)\n",
                 settings.slab_chunk_size_max, settings.item_size_max);
@@ -6392,7 +6426,7 @@ int main (int argc, char **argv) {
     }
     /* start up worker threads if MT mode */
     memcached_thread_init(settings.num_threads);
-    bm_init( use_slab_sizes ? slab_sizes : NULL, settings.factor);
+    bm_init(max_obj, queue_type, use_slab_sizes ? slab_sizes : NULL, settings.factor, R_initial);
     
     if (start_assoc_maintenance_thread() == -1) {
         exit(EXIT_FAILURE);

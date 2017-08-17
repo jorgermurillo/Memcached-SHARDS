@@ -70,8 +70,8 @@ bm_oq_item_t* bm_oq_pop(bm_oq_t* oq) {
 }
 
 // @ Gus: bm settings
-
-bm_type_t bm_type = BM_TO_QUEUE; 
+bm_type_t bm_type = BM_NONE;
+//bm_type_t bm_type = BM_TO_QUEUE; 
 //bm_type_t bm_type = BM_TO_ZEROMQ;
 //bm_type_t bm_type = BM_TO_LOCK_FREE_QUEUE;
 
@@ -110,11 +110,11 @@ bool bm_mpsc_oq_enqueue(bm_op_t op) {
 	return mpscq_enqueue(bm_mpsc_oq, op_ptr);
 }
 
-void bm_init(uint32_t *slab_sizes, double factor) {
-
+void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double factor, double R_initialize) {
+    bm_type = queue_type;
     
     //shards2 = SHARDS_fixed_size_init(16000, 10, Uint64);
-	if (bm_type == BM_NONE) return;
+	if (queue_type == BM_NONE) return;
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
     //JORGE: Initializing a SHARDS struct for each slab.
@@ -139,7 +139,7 @@ void bm_init(uint32_t *slab_sizes, double factor) {
         
         //initializa each SHARDS struct in the shards array. Index is [i-1] because the numbering starts at 
         // one and no at zero.
-        shards_array[i-1] = SHARDS_fixed_size_init(16000, 10, Uint64);
+        shards_array[i-1] = SHARDS_fixed_size_init_R(16000,R_initialize ,10, Uint64);
         item_sizes[i-1] = size;
         //fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
         if (slab_sizes == NULL)
@@ -151,7 +151,7 @@ void bm_init(uint32_t *slab_sizes, double factor) {
     power_largest = i;
     NUMBER_OF_SHARDS = i;
     size = settings.slab_chunk_size_max;
-    shards_array[i-1] = SHARDS_fixed_size_init(16000, 10, Uint64);
+    shards_array[i-1] = SHARDS_fixed_size_init_R(16000,R_initialize ,10, Uint64);
     item_sizes[i-1] = size;
     //fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
     
@@ -164,7 +164,7 @@ void bm_init(uint32_t *slab_sizes, double factor) {
     }
 
 	fprintf(stderr, "----------------------->GUS: Init Benchmarking\n");
-	switch(bm_type) {
+	switch(queue_type) {
     	case BM_NONE: {
     		;
     	} break;
@@ -233,12 +233,13 @@ void bm_process_op(bm_op_t op) {
         for( int k =0; k< NUMBER_OF_SHARDS; k++){
             
             if(shards_array[k]->total_objects !=0 ){
-                snprintf(file_name,40,"%sMRC_SLAB_%02d_%05d.csv",mrc_path, k+1, epoch);
+                snprintf(file_name,40,"%sMRC_epoch_%05d_slab_%02d.csv",mrc_path, epoch, k+1);
                 //fprintf(stderr, "Calculating MRC of Slab %2d (size %2u)\n", k+1, item_sizes[k]);
 
-                
-                GHashTable *mrc = MRC_fixed_size_empty(shards_array[k]);
+                                //fprintf(stderr,"-----total_objects : %u\n", shards_array[k]->total_objects); 
 
+                GHashTable *mrc = MRC_fixed_size_empty(shards_array[k]);
+                //fprintf(stderr,"-----total_objects : %u\n", shards_array[k]->total_objects); 
                 GList *keys = g_hash_table_get_keys(mrc);
                 keys = g_list_sort(keys, (GCompareFunc) intcmp);
 
