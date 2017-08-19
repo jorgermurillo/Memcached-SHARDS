@@ -114,7 +114,10 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
     bm_type = queue_type;
     
     //shards2 = SHARDS_fixed_size_init(16000, 10, Uint64);
-	if (queue_type == BM_NONE) return;
+	if (queue_type == BM_NONE){
+        fprintf(stderr, "No Queue.\n");
+        return;
+    } 
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
     //JORGE: Initializing a SHARDS struct for each slab.
