@@ -98,7 +98,7 @@ FILE *mrc_file;
 
 
 struct mpscq* bm_mpsc_oq;
-#define BM_MPSC_OQ_CAP 10000 // @ Gus: capacity must be set right becasuse mpsc is NOT a ring buffer
+#define BM_MPSC_OQ_CAP (1000000 +1)// @ Gus: capacity must be set right becasuse mpsc is NOT a ring buffer
 void* zmq_context = NULL;
 void* zmq_sender = NULL;
 
@@ -166,20 +166,25 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 	fprintf(stderr, "----------------------->GUS: Init Benchmarking\n");
 	switch(queue_type) {
     	case BM_NONE: {
+            fprintf(stderr, "No Queue.\n");
     		;
     	} break;
     	case BM_PRINT: {
+            fprintf(stderr, "Print\n");
     		;
     	} break;
     	case BM_DIRECT_FILE: {
+            fprintf(stderr, "Direct to File.\n");
     		bm_output_fd = open(bm_output_filename, 
     						 O_WRONLY | O_CREAT | O_TRUNC,
     						 S_IRUSR, S_IWUSR);
     	} break;
     	case BM_TO_QUEUE: {
+            fprintf(stderr, "Message Queue with Locks.\n" );
     		bm_oq_init(&bm_oq);
     	} break;
     	case BM_TO_LOCK_FREE_QUEUE: {
+            fprintf(stderr, "Lock Free Queue. Capacity: %d\n", BM_MPSC_OQ_CAP);
     		bm_mpsc_oq = mpscq_create(NULL, BM_MPSC_OQ_CAP);
     	} break;
     	case BM_TO_ZEROMQ: {
