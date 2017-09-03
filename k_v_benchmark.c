@@ -117,55 +117,56 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 	if (queue_type == BM_NONE){
         fprintf(stderr, "No Queue.\n");
         return;
-    } 
+    }else if(queue_type==BM_TO_QUEUE || queue_type==BM_TO_LOCK_FREE_QUEUE){
 
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
-    //JORGE: Initializing a SHARDS struct for each slab.
-    int power_largest;
-    int i = POWER_SMALLEST - 1;
-    unsigned int size = sizeof(item) + settings.chunk_size; 
-    //printf("SIZE OF ITEM: %u\n", size);
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~    
+        //JORGE: Initializing a SHARDS struct for each slab.
+        int power_largest;
+        int i = POWER_SMALLEST - 1;
+        unsigned int size = sizeof(item) + settings.chunk_size; 
+        //printf("SIZE OF ITEM: %u\n", size);
 
-    while (++i < MAX_NUMBER_OF_SLAB_CLASSES-1) {
-        if (slab_sizes != NULL) {
-            if (slab_sizes[i-1] == 0)
+        while (++i < MAX_NUMBER_OF_SLAB_CLASSES-1) {
+            if (slab_sizes != NULL) {
+                if (slab_sizes[i-1] == 0)
+                    break;
+                size = slab_sizes[i-1];
+            } else if (size >= settings.slab_chunk_size_max / factor) {
                 break;
-            size = slab_sizes[i-1];
-        } else if (size >= settings.slab_chunk_size_max / factor) {
-            break;
-        }
-        /* Make sure items are always n-byte aligned */
-        if (size % CHUNK_ALIGN_BYTES)
-            size += CHUNK_ALIGN_BYTES - (size % CHUNK_ALIGN_BYTES);
+            }
+            /* Make sure items are always n-byte aligned */
+            if (size % CHUNK_ALIGN_BYTES)
+                size += CHUNK_ALIGN_BYTES - (size % CHUNK_ALIGN_BYTES);
 
-      
-        
-        //initializa each SHARDS struct in the shards array. Index is [i-1] because the numbering starts at 
-        // one and no at zero.
+          
+            
+            //initializa each SHARDS struct in the shards array. Index is [i-1] because the numbering starts at 
+            // one and no at zero.
+            shards_array[i-1] = SHARDS_fixed_size_init_R(16000,R_initialize ,10, Uint64);
+            item_sizes[i-1] = size;
+            //fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
+            if (slab_sizes == NULL)
+                size *= factor;
+
+           
+        }
+
+        power_largest = i;
+        NUMBER_OF_SHARDS = i;
+        size = settings.slab_chunk_size_max;
         shards_array[i-1] = SHARDS_fixed_size_init_R(16000,R_initialize ,10, Uint64);
         item_sizes[i-1] = size;
         //fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
-        if (slab_sizes == NULL)
-            size *= factor;
-
-       
-    }
-
-    power_largest = i;
-    NUMBER_OF_SHARDS = i;
-    size = settings.slab_chunk_size_max;
-    shards_array[i-1] = SHARDS_fixed_size_init_R(16000,R_initialize ,10, Uint64);
-    item_sizes[i-1] = size;
-    //fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
     
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
-    for(int j=0; j < NUMBER_OF_SHARDS; j++){
-        printf("R Value %2d: %1.3f\n",j+1, shards_array[j]->R);
+        for(int j=0; j < NUMBER_OF_SHARDS; j++){
+            printf("R Value %2d: %1.3f\n",j+1, shards_array[j]->R);
 
+        }
     }
-
+        
 	fprintf(stderr, "----------------------->GUS: Init Benchmarking\n");
 	switch(queue_type) {
     	case BM_NONE: {
@@ -193,7 +194,11 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
     	case BM_TO_ZEROMQ: {
 		    zmq_context = zmq_ctx_new ();
 		    zmq_sender = zmq_socket (zmq_context, ZMQ_PUB);
-		    int rc = zmq_bind(zmq_sender, "tcp://*:5555");
+
+            int zeromq_socket_opt_value = 0;
+            int rc =  zmq_setsockopt (zmq_sender, ZMQ_SNDHWM,&zeromq_socket_opt_value , sizeof(int)); 
+
+		    rc = zmq_bind(zmq_sender, "tcp://*:5555");
             printf("result of zmq_bind(): %d\n", rc);
 		    fprintf (stderr, "Started zmq server...\n");
     	} break;
