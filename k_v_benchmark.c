@@ -76,6 +76,7 @@ bm_type_t bm_type = BM_NONE;
 //bm_type_t bm_type = BM_TO_LOCK_FREE_QUEUE;
 
 
+
 char bm_output_filename[] = "benchmarking_output.txt";
 int  bm_output_fd = -1;
 
@@ -101,6 +102,8 @@ struct mpscq* bm_mpsc_oq;
 #define BM_MPSC_OQ_CAP (1000000 +1)// @ Gus: capacity must be set right becasuse mpsc is NOT a ring buffer
 void* zmq_context = NULL;
 void* zmq_sender = NULL;
+
+pthread_mutex_t zeroMQ_lock;
 
 // @ Gus: bm functions
 static
@@ -194,7 +197,7 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
     	case BM_TO_ZEROMQ: {
 		    zmq_context = zmq_ctx_new ();
 		    zmq_sender = zmq_socket (zmq_context, ZMQ_PUB);
-
+            pthread_mutex_init(&zeroMQ_lock,NULL);
             int zeromq_socket_opt_value = 0;
             int rc =  zmq_setsockopt (zmq_sender, ZMQ_SNDHWM,&zeromq_socket_opt_value , sizeof(int)); 
 
@@ -245,7 +248,7 @@ void bm_process_op(bm_op_t op) {
 
         for( int k =0; k< NUMBER_OF_SHARDS; k++){
             
-            if(shards_array[k]->total_objects !=0 ){
+            if(shards_array[k]->num_obj !=0 ){
                 snprintf(file_name,40,"%sMRC_epoch_%05d_slab_%02d.csv",mrc_path, epoch, k+1);
                 //fprintf(stderr, "Calculating MRC of Slab %2d (size %2u)\n", k+1, item_sizes[k]);
 
@@ -256,12 +259,12 @@ void bm_process_op(bm_op_t op) {
                 GList *keys = g_hash_table_get_keys(mrc);
                 keys = g_list_sort(keys, (GCompareFunc) intcmp);
 
-                mrc_file = fopen(file_name,"w");
+                //mrc_file = fopen(file_name,"w");
 
                 //printf("WRITING MRC FILE...\n");
                 while(1){
                     //printf("key: %7d  Value: %1.6f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
-                    fprintf(mrc_file,"%7d,%1.7f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
+                    //fprintf(mrc_file,"%7d,%1.7f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
 
                     if(keys->next==NULL)
                         break;
@@ -270,7 +273,7 @@ void bm_process_op(bm_op_t op) {
 
 
 
-                fclose(mrc_file);
+                //fclose(mrc_file);
                 //printf("MRC FILE WRITTEN! :D\n");
 
                 //printf("R Value:%f\n", shards_array[k]->R);
@@ -396,7 +399,9 @@ void bm_record_op(bm_op_t op) {
         } break;
         case BM_TO_ZEROMQ: {
             // fprintf(stderr, "sending op: %d, hv: %"PRIu64"\n", op.type, op.key_hv);
+            pthread_mutex_lock(&zeroMQ_lock);
             zmq_send(zmq_sender, &op, sizeof(bm_op_t), ZMQ_DONTWAIT);
+            pthread_mutex_unlock(&zeroMQ_lock);
         } break;
     }
 }
