@@ -6244,7 +6244,7 @@ int main (int argc, char **argv) {
         return 1;
     }
     if(queue_type <0 || queue_type>5){
-        fprintf(stderr, "The values for Q must be between 0 and 5 where:\n0 BM_NONE\n1 BM_PRINT\n2 BM_DIRECT_FILE\n3 BM_TO_QUEUE\n4 BM_TO_LOCK_FREE_QUEUE\n5 BM_TO_ZEROMQ\n");
+        fprintf(stderr, "The values for Q must be between 0 and 5 where:\n0 BM_NONE\n1 BM_PRINT\n2 BM_DIRECT_FILE\n3 BM_TO_QUEUE\n4 BM_TO_RING_BUFFER\n5 BM_TO_ZEROMQ\n");
         return 1;
     }
     if (settings.slab_chunk_size_max > settings.item_size_max) {
@@ -6534,11 +6534,11 @@ int main (int argc, char **argv) {
     
     //TEST
     //char* message_arg = "Mensaje de prueba";
-    SHARDS *shards = SHARDS_fixed_size_init(32000, 10, Uint64);
+    //SHARDS *shards = SHARDS_fixed_size_init(32000, 10, Uint64);
 
     pthread_t bm_thread;
-    //pthread_create(&bm_thread, NULL, bm_loop_in_thread, NULL);
-    pthread_create(&bm_thread, NULL, bm_loop_in_thread, shards);
+    pthread_create(&bm_thread, NULL, bm_loop_in_thread, NULL);
+    //pthread_create(&bm_thread, NULL, bm_loop_in_thread, shards);
 
     /* enter the event loop */
     if (event_base_loop(main_base, 0) != 0) {

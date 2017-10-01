@@ -29,8 +29,8 @@ memcached_SOURCES = memcached.c memcached.h \
                     SHARDS.c SHARDS.h \
                     splay.c splay.h \
                     murmurhash3.c murmurhash3.h \
-                    k_v_benchmark.c k_v_benchmark.h \
-                    mpsc.c mpsc.h 
+                    k_v_benchmark.c k_v_benchmark.h 
+                    
 
 CFLAGS = -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -L/usr/lib -lm -lglib-2.0
 

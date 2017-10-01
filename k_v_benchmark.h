@@ -21,6 +21,13 @@ typedef enum {
 } bm_type_t;
 
 typedef enum {
+	BM_PROCESS_DUMMY,		//0
+	BM_PROCESS_ADD,	 		//1
+	BM_PROCESS_SPIN,		//2
+	BM_PROCESS_PRINT,		//3
+} bm_process_op_t;
+
+typedef enum {
     BM_READ_OP,
     BM_WRITE_OP,
 } bm_op_type_t;

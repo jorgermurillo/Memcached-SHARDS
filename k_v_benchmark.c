@@ -1,12 +1,14 @@
 #include "k_v_benchmark.h"
 #include "memcached.h"
-#include "mpscq.h"
+//#include "mpscq.h"
 #include "SHARDS.h"
 #include <zmq.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include "mpscq.h"
-
+#include "waitfree-mpsc-queue/mpscq.h"
+#include "waitfree-mpsc-queue/mpsc.c"
+#include "ringbuf/src/ringbuf.h"
+#include "ringbuf/src/ringbuf.c"
 
 // @ Gus: OP QUEUE
 typedef struct bm_oq_item_t bm_oq_item_t;
@@ -75,34 +77,47 @@ bm_type_t bm_type = BM_NONE;
 //bm_type_t bm_type = BM_TO_ZEROMQ;
 //bm_type_t bm_type = BM_TO_LOCK_FREE_QUEUE;
 
+bm_oq_t bm_oq;
+
+bm_process_op_t bm_process_op_type = BM_PROCESS_DUMMY;
+int SPIN_TIME = -1;
+int random_accum = 0;
+
+
+
+//Ring-Buffer stuff
+#define MAX_WORKERS 2
+static size_t ringbuf_obj_size;
+static size_t ringbuf_obj_size;
+ringbuf_t* bm_ringbuf;
+ringbuf_worker_t* w1;
+ssize_t off1 = -1;
+unsigned char* buf;
 
 
 char bm_output_filename[] = "benchmarking_output.txt";
 int  bm_output_fd = -1;
 
-bm_oq_t bm_oq;
 
+
+//~~~~~~~~~~~~~~~~~SHARDS stuff~~~~~~~~~~~~~~~~~
 SHARDS *shards_array[MAX_NUMBER_OF_SLAB_CLASSES];
 unsigned int item_sizes[MAX_NUMBER_OF_SLAB_CLASSES];
-//SHARDS *shards2;
 //Which epoch we are working on.
 unsigned int epoch =1;
 int number_of_objects=0;
-
 int OBJECT_LIMIT= 1000000;
-
 int NUMBER_OF_SHARDS =0;
 char* mrc_path = "./Results/";
 char file_name[40];
-
 FILE *mrc_file;
 
-
+//MPSC (Lockfree queue) stuff
 struct mpscq* bm_mpsc_oq;
-#define BM_MPSC_OQ_CAP (1000000 +1)// @ Gus: capacity must be set right becasuse mpsc is NOT a ring buffer
+int BM_MPSC_OQ_CAP = (1000000 +1);// @ Gus: capacity must be set right becasuse mpsc is NOT a ring buffer
+//ZeroMQ stuff
 void* zmq_context = NULL;
 void* zmq_sender = NULL;
-
 pthread_mutex_t zeroMQ_lock;
 
 // @ Gus: bm functions
@@ -111,6 +126,26 @@ bool bm_mpsc_oq_enqueue(bm_op_t op) {
 	bm_op_t* op_ptr = malloc(sizeof(bm_op_t));
 	*op_ptr = op;
 	return mpscq_enqueue(bm_mpsc_oq, op_ptr);
+}
+
+int get_and_set_config_from_file() {
+    
+    static char* filename = "./bm_config.txt";
+    FILE* bm_config_fptr = fopen(filename, "r");
+    if (bm_config_fptr == NULL) {
+        fprintf(stderr, "%s does NOT exist or it is Wrong.\n", filename);
+        return -1;
+    }
+
+    char line[50];
+    fgets(line, 50, bm_config_fptr);
+    BM_MPSC_OQ_CAP = atoi(line);
+    fgets(line, 50, bm_config_fptr);
+    bm_process_op_type = atoi(line);
+    fgets(line, 50, bm_config_fptr);
+    SPIN_TIME = atoi(line);
+    fclose(bm_config_fptr);
+    return 0;
 }
 
 void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double factor, double R_initialize) {
@@ -191,8 +226,18 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
     		bm_oq_init(&bm_oq);
     	} break;
     	case BM_TO_LOCK_FREE_QUEUE: {
-            fprintf(stderr, "Lock Free Queue. Capacity: %d\n", BM_MPSC_OQ_CAP);
-    		bm_mpsc_oq = mpscq_create(NULL, BM_MPSC_OQ_CAP);
+            //fprintf(stderr, "Lock Free Queue. Capacity: %d\n", BM_MPSC_OQ_CAP);
+    		//bm_mpsc_oq = mpscq_create(NULL, BM_MPSC_OQ_CAP);
+
+            {
+                size_t buf_len = BM_MPSC_OQ_CAP * sizeof(bm_op_t);
+                buf = malloc(buf_len);
+                ringbuf_get_sizes(MAX_WORKERS, &ringbuf_obj_size, NULL);
+                bm_ringbuf = malloc(ringbuf_obj_size);
+                ringbuf_setup(bm_ringbuf, MAX_WORKERS, buf_len);
+                w1 = ringbuf_register(bm_ringbuf, 0);
+            }
+
     	} break;
     	case BM_TO_ZEROMQ: {
 		    zmq_context = zmq_ctx_new ();
@@ -212,7 +257,7 @@ static
 void bm_write_line_op(int fd, bm_op_t op) {
 	size_t str_buffer_length = 3 + 10;
 	char* str_buffer = malloc(str_buffer_length);
-	sprintf(str_buffer, "%d %"PRIu64"\n", op.type, op.key_hv);
+	sprintf(str_buffer, "%d %"PRIu64" %d \n", op.type, op.key_hv, op.slab_id);
 	write(fd, str_buffer, strlen(str_buffer));
 	free(str_buffer);
 }
@@ -226,6 +271,31 @@ void bm_write_op_to_oq(bm_oq_t* oq, bm_op_t op) {
 
 static
 void bm_process_op(bm_op_t op) {
+
+    switch(bm_process_op_type) {
+        case BM_PROCESS_DUMMY: {
+            ;
+        } break;
+        case BM_PROCESS_ADD: {
+            random_accum += rand();
+            return;
+        } break;
+        case BM_PROCESS_SPIN: {
+            struct timeval t1, t2;
+            gettimeofday(&t1, NULL);
+            double elapsed = 0;
+            do {
+                gettimeofday(&t2, NULL);
+                elapsed = t2.tv_usec - t1.tv_usec;
+            } while(elapsed < SPIN_TIME);
+            return;
+        } break;
+        case BM_PROCESS_PRINT: {
+            fprintf(stderr, "type: %d, key: %"PRIu64"\n", op.type, op.key_hv);
+            return;
+        } break;
+    }
+
 	// bm_write_line_op(bm_output_fd, op);
     unsigned int slab_ID = 0;
     uint64_t *object = malloc(sizeof(uint64_t));
@@ -259,12 +329,15 @@ void bm_process_op(bm_op_t op) {
                 GList *keys = g_hash_table_get_keys(mrc);
                 keys = g_list_sort(keys, (GCompareFunc) intcmp);
 
-                //mrc_file = fopen(file_name,"w");
+                mrc_file = fopen(file_name,"w");
 
                 //printf("WRITING MRC FILE...\n");
                 while(1){
+                    
+                    //printf("key: %7d  \n",*(int*)keys->data );
+                    //printf("Value: %1.6f\n",*(double*)g_hash_table_lookup(mrc, keys->data) );
                     //printf("key: %7d  Value: %1.6f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
-                    //fprintf(mrc_file,"%7d,%1.7f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
+                    fprintf(mrc_file,"%7d,%1.7f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
 
                     if(keys->next==NULL)
                         break;
@@ -273,7 +346,7 @@ void bm_process_op(bm_op_t op) {
 
 
 
-                //fclose(mrc_file);
+                fclose(mrc_file);
                 //printf("MRC FILE WRITTEN! :D\n");
 
                 //printf("R Value:%f\n", shards_array[k]->R);
@@ -316,13 +389,28 @@ void bm_consume_ops() {
 			}
     	} break;
     	case BM_TO_LOCK_FREE_QUEUE: {
-    		void* item = mpscq_dequeue(bm_mpsc_oq);
+    		/*
+            void* item = mpscq_dequeue(bm_mpsc_oq);
     		while(NULL != item) {
     			bm_op_t* op_ptr = item;
     			bm_process_op(*op_ptr);
     			free(op_ptr);
     			item = mpscq_dequeue(bm_mpsc_oq);
-    		}
+    		}*/
+
+            {
+                size_t len=0;
+                size_t woff=0;
+                len = ringbuf_consume(bm_ringbuf, &woff);
+                size_t n_op = len/sizeof(bm_op_t);
+                for (int i = 0; i < n_op; ++i) {
+                    bm_op_t op;
+                    memcpy(&op, &buf[woff], sizeof(bm_op_t));
+                    bm_process_op(op);
+                    woff += sizeof(bm_op_t);
+                }
+                ringbuf_release(bm_ringbuf, len);
+            }
     	} break;
     	case BM_TO_ZEROMQ: {
     		;
@@ -395,7 +483,14 @@ void bm_record_op(bm_op_t op) {
             bm_write_op_to_oq(&bm_oq, op);
         } break;
         case BM_TO_LOCK_FREE_QUEUE: {
-            bm_mpsc_oq_enqueue(op);
+            //MPSC implementation
+            //bm_mpsc_oq_enqueue(op);
+            {
+                ssize_t off = ringbuf_acquire(bm_ringbuf, w1, sizeof(bm_op_t));
+                memcpy(&buf[off], &op, sizeof(bm_op_t));
+                ringbuf_produce(bm_ringbuf, w1);
+            }
+
         } break;
         case BM_TO_ZEROMQ: {
             // fprintf(stderr, "sending op: %d, hv: %"PRIu64"\n", op.type, op.key_hv);
