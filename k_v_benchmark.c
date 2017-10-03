@@ -87,8 +87,8 @@ int random_accum = 0;
 
 //Ring-Buffer stuff
 #define MAX_WORKERS 2
-static size_t ringbuf_obj_size;
-static size_t ringbuf_obj_size;
+//static size_t ringbuf_obj_size;
+static size_t ringbuf_obj_size = 0;
 ringbuf_t* bm_ringbuf;
 ringbuf_worker_t* w1;
 ssize_t off1 = -1;
@@ -230,18 +230,26 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
     		//bm_mpsc_oq = mpscq_create(NULL, BM_MPSC_OQ_CAP);
 
             {
+                //printf("RINGBUFFER SIZE: %d\n", ringbuf_obj_size);
                 size_t buf_len = BM_MPSC_OQ_CAP * sizeof(bm_op_t);
                 buf = malloc(buf_len);
+                memset(buf,0,buf_len);
                 ringbuf_get_sizes(MAX_WORKERS, &ringbuf_obj_size, NULL);
+                //printf("RINGBUFFER SIZE (2nd time): %d\n", ringbuf_obj_size);
+
                 bm_ringbuf = malloc(ringbuf_obj_size);
+                //memset(bm_ringbuf, 0, sizeof(ringbuf_t));
+                memset(bm_ringbuf, 0, ringbuf_obj_size);
+
                 ringbuf_setup(bm_ringbuf, MAX_WORKERS, buf_len);
+                //ringbuf_setup(bm_ringbuf, MAX_WORKERS, ringbuf_obj_size);
                 w1 = ringbuf_register(bm_ringbuf, 0);
             }
 
     	} break;
     	case BM_TO_ZEROMQ: {
 		    zmq_context = zmq_ctx_new ();
-		    zmq_sender = zmq_socket (zmq_context, ZMQ_PUB);
+		    zmq_sender = zmq_socket (zmq_context, ZMQ_PUB); 
             pthread_mutex_init(&zeroMQ_lock,NULL);
             int zeromq_socket_opt_value = 0;
             int rc =  zmq_setsockopt (zmq_sender, ZMQ_SNDHWM,&zeromq_socket_opt_value , sizeof(int)); 

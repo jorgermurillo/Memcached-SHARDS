@@ -105,12 +105,15 @@ struct ringbuf {
  */
 int
 ringbuf_setup(ringbuf_t *rbuf, unsigned nworkers, size_t length)
-{
+{	
+
+	//rbuf = malloc(ringbuf_obj_size);
 	if (length >= RBUF_OFF_MASK) {
 		errno = EINVAL;
 		return -1;
 	}
 	memset(rbuf, 0, sizeof(ringbuf_t));
+	//memset(rbuf, 0, length);
 	rbuf->space = length;
 	rbuf->end = RBUF_OFF_MAX;
 	rbuf->nworkers = nworkers;
