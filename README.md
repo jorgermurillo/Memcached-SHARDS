@@ -2,7 +2,9 @@
 
 This is a modified version of Memcached that uses SHARDS (https://github.com/jorgermurillo/SHARDS-C) to monitor the MRC of each slab.
 
-This work was done as part of a larger project for Dr. Cristina Abad (https://sites.google.com/site/cristinaabad/). 
+This work was done jointly with Gustavo Totoy (https://github.com/gtotoy) as part of a larger project for Dr. Cristina Abad (https://sites.google.com/site/cristinaabad/). 
+
+ :rotating_light:  :rotating_light:  :rotating_light: ## WARNING  :rotating_light:  :rotating_light:  :rotating_light: This repository might be merged with Gustavo's fork of Memcached (https://github.com/gtotoy/memcached) in the future.
 
 This work was funded in part by a Google Faculty Research Award.
 
