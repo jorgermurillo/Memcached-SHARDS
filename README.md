@@ -27,6 +27,7 @@ If you found our tool useful and use it in research, please cite our work as fol
 Instrumenting cloud caches for online workload monitoring
 Jorge R. Murillo, Gustavo Totoy, Cristina L. Abad
 16th Workshop on Adaptive and Reflective Middleware (ARM), co-located with ACM/IFIP/USENIX Middleware, 2017.
+Code available at: https://github.com/jorgermurillo/Memcached-SHARDS
 
 ## Acknowledgements
 
