@@ -21,22 +21,12 @@ try typing
 
  on the terminal.
 
-## Dependencies
+## Referencing our work
+If you found our tool useful and use it in research, please cite our work as follows:
 
-* libevent, http://www.monkey.org/~provos/libevent/ (libevent-dev)
-
-## Environment
-
-### Linux
-
-If using Linux, you need a kernel with epoll.  Sure, libevent will
-work with normal select, but it sucks.
-
-epoll isn't in Linux 2.4, but there's a backport at:
-
-    http://www.xmailserver.org/linux-patches/nio-improve.html
-
-You want the epoll-lt patch (level-triggered).
+Instrumenting cloud caches for online workload monitoring
+Jorge R. Murillo, Gustavo Totoy, Cristina L. Abad
+16th Workshop on Adaptive and Reflective Middleware (ARM), co-located with ACM/IFIP/USENIX Middleware, 2017.
 
 ## Acknowledgements
 
