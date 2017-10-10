@@ -4,9 +4,12 @@ This is a modified version of Memcached that uses SHARDS (https://github.com/jor
 
 This work was done jointly with Gustavo Totoy (https://github.com/gtotoy) as part of a larger project for Dr. Cristina Abad (https://sites.google.com/site/cristinaabad/). 
 
- :rotating_light:  :rotating_light:  :rotating_light: ## WARNING  :rotating_light:  :rotating_light:  :rotating_light: This repository might be merged with Gustavo's fork of Memcached (https://github.com/gtotoy/memcached) in the future.
+ :rotating_light:  :rotating_light:  :rotating_light: 
+ ## WARNING  
+ :rotating_light:  :rotating_light:  :rotating_light: 
 
-This work was funded in part by a Google Faculty Research Award.
+ This repository might be merged with Gustavo's fork of Memcached (https://github.com/gtotoy/memcached) in the future.
+
 
 After installing zeromq, if you get an error like:
 
@@ -35,3 +38,8 @@ epoll isn't in Linux 2.4, but there's a backport at:
 
 You want the epoll-lt patch (level-triggered).
 
+## Acknowledgements
+
+This work was funded in part by a Google Faculty Research Award.
+
+This work was possible thanks to the Amazon Web Services Cloud Credits for Research program.
