@@ -3,12 +3,14 @@
 //#include "mpscq.h"
 #include "SHARDS.h"
 #include <zmq.h>
+#include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include "waitfree-mpsc-queue/mpscq.h"
-#include "waitfree-mpsc-queue/mpsc.c"
-#include "ringbuf/src/ringbuf.h"
-#include "ringbuf/src/ringbuf.c"
+//#include "waitfree-mpsc-queue/mpscq.h"
+//#include "waitfree-mpsc-queue/mpsc.c"
+//#include "ringbuf/src/ringbuf.h"
+//#include "ringbuf/src/ringbuf.c"
+#include "liblfds7.1.1/liblfds7.1.1/liblfds711/inc/liblfds711.h" 
 
 // @ Gus: OP QUEUE
 typedef struct bm_oq_item_t bm_oq_item_t;
@@ -84,7 +86,7 @@ int SPIN_TIME = -1;
 int random_accum = 0;
 
 
-
+/*
 //Ring-Buffer stuff
 #define MAX_WORKERS 2
 //static size_t ringbuf_obj_size;
@@ -93,7 +95,7 @@ ringbuf_t* bm_ringbuf;
 ringbuf_worker_t* w1;
 ssize_t off1 = -1;
 unsigned char* buf;
-
+*/
 
 char bm_output_filename[] = "benchmarking_output.txt";
 int  bm_output_fd = -1;
@@ -115,19 +117,26 @@ FILE *mrc_file;
 //MPSC (Lockfree queue) stuff
 struct mpscq* bm_mpsc_oq;
 int BM_MPSC_OQ_CAP = (1000000 +1);// @ Gus: capacity must be set right becasuse mpsc is NOT a ring buffer
+//Ringbuf stuff
+enum lfds711_misc_flag overwrite_occurred_flag;
+struct lfds711_ringbuffer_element *re;
+struct lfds711_ringbuffer_state rs;
+
+
 //ZeroMQ stuff
 void* zmq_context = NULL;
 void* zmq_sender = NULL;
 pthread_mutex_t zeroMQ_lock;
 
 // @ Gus: bm functions
+/*
 static
 bool bm_mpsc_oq_enqueue(bm_op_t op) {
 	bm_op_t* op_ptr = malloc(sizeof(bm_op_t));
 	*op_ptr = op;
 	return mpscq_enqueue(bm_mpsc_oq, op_ptr);
 }
-
+*/
 int get_and_set_config_from_file() {
     
     static char* filename = "./bm_config.txt";
@@ -228,22 +237,24 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
     	case BM_TO_LOCK_FREE_QUEUE: {
             //fprintf(stderr, "Lock Free Queue. Capacity: %d\n", BM_MPSC_OQ_CAP);
     		//bm_mpsc_oq = mpscq_create(NULL, BM_MPSC_OQ_CAP);
-
+            // {
+            //     bm_mpsc_oq = mpscq_create(NULL, BM_MPSC_OQ_CAP);
+            // }
+            // {
+            //     size_t buf_len = BM_MPSC_OQ_CAP * sizeof(bm_op_t);
+            //     buf = malloc(buf_len);
+            //     memset(buf, 0, buf_len);
+            //     ringbuf_get_sizes(MAX_WORKERS, &ringbuf_obj_size, NULL);
+            //     bm_ringbuf = malloc(ringbuf_obj_size);
+            //     memset(bm_ringbuf, 0, ringbuf_obj_size);
+            //     ringbuf_setup(bm_ringbuf, MAX_WORKERS, buf_len);
+            //     w1 = ringbuf_register(bm_ringbuf, 0);
+            // }
             {
-                //printf("RINGBUFFER SIZE: %d\n", ringbuf_obj_size);
-                size_t buf_len = BM_MPSC_OQ_CAP * sizeof(bm_op_t);
-                buf = malloc(buf_len);
-                memset(buf,0,buf_len);
-                ringbuf_get_sizes(MAX_WORKERS, &ringbuf_obj_size, NULL);
-                //printf("RINGBUFFER SIZE (2nd time): %d\n", ringbuf_obj_size);
-
-                bm_ringbuf = malloc(ringbuf_obj_size);
-                //memset(bm_ringbuf, 0, sizeof(ringbuf_t));
-                memset(bm_ringbuf, 0, ringbuf_obj_size);
-
-                ringbuf_setup(bm_ringbuf, MAX_WORKERS, buf_len);
-                //ringbuf_setup(bm_ringbuf, MAX_WORKERS, ringbuf_obj_size);
-                w1 = ringbuf_register(bm_ringbuf, 0);
+                // @ Gus: plus one extra for the necessary dummy element
+                printf( "Ring Buffer...\n");
+                re = malloc( sizeof(struct lfds711_ringbuffer_element) * BM_MPSC_OQ_CAP + 1 );
+                lfds711_ringbuffer_init_valid_on_current_logical_core( &rs, re, BM_MPSC_OQ_CAP + 1, NULL );
             }
 
     	} break;
@@ -303,23 +314,37 @@ void bm_process_op(bm_op_t op) {
             return;
         } break;
     }
-
+    struct timespec ti = {0, 1000000};
 	// bm_write_line_op(bm_output_fd, op);
     unsigned int slab_ID = 0;
     uint64_t *object = malloc(sizeof(uint64_t));
     *object = op.key_hv;
 
-    //printf("Slab ID: %"PRIu8"\n", op.slab_id);
+    number_of_objects ++;
+    //nanosleep(&ti, NULL);
     slab_ID = op.slab_id - 128;
+    printf("## Slab ID: %4"PRIu8"  Slab new ID: %4u  KEY: %11"PRIu64" TYPE: %d NUM_OBJ: %15d\n", op.slab_id, slab_ID, op.key_hv, op.type, number_of_objects);
+
+    int dummy = 0;
+    for(int o = 0; o<=10000; o++){
+        //this is a dummy function
+        if (dummy%2==0){
+            dummy++;
+        }else{
+            dummy--;
+        }
+
+    }
+
     //printf("Slab new ID: %u\n", slab_ID);
     //printf("PROCESS_OP Max Set Size: %u\n", shards2->S_max);
     SHARDS_feed_obj(shards_array[slab_ID -1] ,object , sizeof(uint64_t));
-    number_of_objects ++;
+    
     //printf("Number of objects received: %d\n", number_of_objects );
 
     //printf("%d\n", (shards2)->num_obj);
 
-    //fprintf(stderr, "type: %d, key: %"PRIu64"\n", op.type, op.key_hv);
+    //printf("type: %d, key: %"PRIu64"\n", op.type, op.key_hv);
 
     if(number_of_objects==OBJECT_LIMIT){
         //printf("CALCULATING Miss Rate Curves...\n");
@@ -376,7 +401,7 @@ void bm_process_op(bm_op_t op) {
 }
 
 static
-void bm_consume_ops() {
+void bm_consume_ops(){
 	switch(bm_type) {
 		case BM_NONE: {
     		;
@@ -397,35 +422,44 @@ void bm_consume_ops() {
 			}
     	} break;
     	case BM_TO_LOCK_FREE_QUEUE: {
-    		/*
-            void* item = mpscq_dequeue(bm_mpsc_oq);
-    		while(NULL != item) {
-    			bm_op_t* op_ptr = item;
-    			bm_process_op(*op_ptr);
-    			free(op_ptr);
-    			item = mpscq_dequeue(bm_mpsc_oq);
-    		}*/
-
+    		// {
+            //     void* item = mpscq_dequeue(bm_mpsc_oq);
+            //     while(NULL != item) {
+            //         bm_op_t* op_ptr = item;
+            //         bm_process_op(*op_ptr);
+            //         free(op_ptr);
+            //         item = mpscq_dequeue(bm_mpsc_oq);
+            //     }    
+            // }
+            // {
+      //           size_t len, woff;
+      //           len = ringbuf_consume(bm_ringbuf, &woff);
+      //           size_t n_op = len/sizeof(bm_op_t);
+      //           for (int i = 0; i < n_op; ++i) {
+      //               bm_op_t op;
+      //               memcpy(&op, &buf[woff], sizeof(bm_op_t));
+      //               bm_process_op(op);
+      //               woff += sizeof(bm_op_t);
+      //           }
+      //           ringbuf_release(bm_ringbuf, len);
+      //       }
             {
-                size_t len=0;
-                size_t woff=0;
-                len = ringbuf_consume(bm_ringbuf, &woff);
-                size_t n_op = len/sizeof(bm_op_t);
-                for (int i = 0; i < n_op; ++i) {
-                    bm_op_t op;
-                    memcpy(&op, &buf[woff], sizeof(bm_op_t));
-                    bm_process_op(op);
-                    woff += sizeof(bm_op_t);
-                }
-                ringbuf_release(bm_ringbuf, len);
+                void* item;
+                int rv = lfds711_ringbuffer_read( &rs, &item, NULL );
+                while(1 == rv) {
+                    bm_op_t* op_ptr = item;
+                    bm_process_op(*op_ptr);
+                    free(op_ptr);
+                    rv = lfds711_ringbuffer_read( &rs, &item, NULL );
             }
+            
     	} break;
     	case BM_TO_ZEROMQ: {
     		;
     	} break;
 	}
+    }
 }
-
 // @ Gus: LIBEVENT
 static
 struct event_base* bm_event_base;
@@ -493,10 +527,27 @@ void bm_record_op(bm_op_t op) {
         case BM_TO_LOCK_FREE_QUEUE: {
             //MPSC implementation
             //bm_mpsc_oq_enqueue(op);
+            // {
+            //     bm_mpsc_oq_enqueue(op);    
+            // }
+            
+            // {
+            //     ssize_t off = ringbuf_acquire(bm_ringbuf, w1, sizeof(bm_op_t));
+            //     memcpy(&buf[off], &op, sizeof(bm_op_t));
+            //     ringbuf_produce(bm_ringbuf, w1);
+            // }
             {
-                ssize_t off = ringbuf_acquire(bm_ringbuf, w1, sizeof(bm_op_t));
-                memcpy(&buf[off], &op, sizeof(bm_op_t));
-                ringbuf_produce(bm_ringbuf, w1);
+                bm_op_t* op_ptr = malloc(sizeof(bm_op_t));
+                *op_ptr = op;
+                lfds711_ringbuffer_write( &rs, 
+                                        op_ptr, 
+                                        NULL, 
+                                        &overwrite_occurred_flag, 
+                                        NULL, 
+                                        NULL );
+                if( overwrite_occurred_flag == LFDS711_MISC_FLAG_RAISED ) {
+                    fprintf(stderr, "----------------------->GUS: OVERRIDED ELEMENT IN RING BUFFER\n");
+                }
             }
 
         } break;

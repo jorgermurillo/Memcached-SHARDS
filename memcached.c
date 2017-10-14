@@ -3458,6 +3458,7 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     it = item_alloc(key, nkey, flags, realtime(exptime), vlen);
     
 
+
     if (it == 0) {
         enum store_item_type status;
         if (! item_size_ok(nkey, flags, vlen)) {
@@ -3492,6 +3493,9 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
         //number_sets++;
         //printf("Sets: %u\n", number_sets);
         bm_op_t op = {BM_WRITE_OP, hash(key, nkey), it->slabs_clsid};
+        FILE *debugfile = fopen("debug.out", "a");
+        fprintf(debugfile, " Slab new ID: %u  KEY: %"PRIu64" TYPE: %d n",  op.slab_id,  op.key_hv, op.type);
+        fclose(debugfile);
         bm_record_op(op);
     }
     //printf("Slabs UPDATECOMMAND:%"PRIu8"\n", it->slabs_clsid);
@@ -5692,7 +5696,6 @@ static bool _parse_slab_sizes(char *s, uint32_t *slab_sizes) {
 }
 
 
-
 int main (int argc, char **argv) {
     //Jorge: Command line arguments for SHARDS
     int max_obj=1000000;
@@ -5715,7 +5718,7 @@ int main (int argc, char **argv) {
     /* listening sockets */
     static int *l_socket = NULL;
 
-
+    
     
 
 
@@ -5833,7 +5836,7 @@ int main (int argc, char **argv) {
           "o:"  /* Extended generic options */
           "G:"  /* R_init value for the SHARDS instances */
           "Q:"  /* Queue */
-          "O:"  /* max objects between epochs in SHARDS */
+          "O:"  /* max objects between epochs in hSHARDS */
         ))) {
         switch (c) {
         case 'O':

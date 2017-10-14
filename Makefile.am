@@ -6,7 +6,7 @@ BUILT_SOURCES=
 
 CC = gcc -std=gnu11
 
-LIBS = -lzmq -levent -lpthread 
+LIBS = -lzmq -levent -lpthread -llfds711
 
 testapp_SOURCES = testapp.c util.c util.h
 

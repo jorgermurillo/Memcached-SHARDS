@@ -82,12 +82,13 @@ static void slabs_preallocate (const unsigned int maxslabs);
 
 unsigned int slabs_clsid(const size_t size) {
     int res = POWER_SMALLEST;
-
-    if (size == 0 || size > settings.item_size_max)
+    //printf("Size: %d\n", size);
+    if (size <= 0 || size > settings.item_size_max)
         return 0;
     while (size > slabclass[res].size)
         if (res++ == power_largest)     /* won't fit in the biggest slab */
             return power_largest;
+    //printf("Slab: %d\n", res);
     return res;
 }
 
