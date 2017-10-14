@@ -323,7 +323,7 @@ void bm_process_op(bm_op_t op) {
     number_of_objects ++;
     //nanosleep(&ti, NULL);
     slab_ID = op.slab_id - 128;
-    printf("## Slab ID: %4"PRIu8"  Slab new ID: %4u  KEY: %11"PRIu64" TYPE: %d NUM_OBJ: %15d\n", op.slab_id, slab_ID, op.key_hv, op.type, number_of_objects);
+    //printf("## Slab ID: %4"PRIu8"  Slab new ID: %4u  KEY: %11"PRIu64" TYPE: %d NUM_OBJ: %15d\n", op.slab_id, slab_ID, op.key_hv, op.type, number_of_objects);
 
     int dummy = 0;
     for(int o = 0; o<=10000; o++){
