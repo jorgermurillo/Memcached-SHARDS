@@ -3493,9 +3493,6 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
         //number_sets++;
         //printf("Sets: %u\n", number_sets);
         bm_op_t op = {BM_WRITE_OP, hash(key, nkey), it->slabs_clsid};
-        FILE *debugfile = fopen("debug.out", "a");
-        fprintf(debugfile, " Slab new ID: %u  KEY: %"PRIu64" TYPE: %d n",  op.slab_id,  op.key_hv, op.type);
-        fclose(debugfile);
         bm_record_op(op);
     }
     //printf("Slabs UPDATECOMMAND:%"PRIu8"\n", it->slabs_clsid);
