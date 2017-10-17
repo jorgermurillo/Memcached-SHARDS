@@ -6537,7 +6537,9 @@ int main (int argc, char **argv) {
     //SHARDS *shards = SHARDS_fixed_size_init(32000, 10, Uint64);
 
     pthread_t bm_thread;
-    pthread_create(&bm_thread, NULL, bm_loop_in_thread, NULL);
+    if(queue_type!=BM_NONE){
+        pthread_create(&bm_thread, NULL, bm_loop_in_thread, NULL);
+    }
     //pthread_create(&bm_thread, NULL, bm_loop_in_thread, shards);
 
     /* enter the event loop */
