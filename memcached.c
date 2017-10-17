@@ -3187,6 +3187,8 @@ static void process_stat(conn *c, token_t *tokens, const size_t ntokens) {
 }
 //unsigned int number_gets =0;
 /* ntokens is overwritten here... shrug.. */
+bm_type_t queue_type =0;
+
 static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens, bool return_cas) {
     char *key;
     size_t nkey;
@@ -3398,6 +3400,8 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
     
 }
 //unsigned int number_sets =0;
+
+
 static void process_update_command(conn *c, token_t *tokens, const size_t ntokens, int comm, bool handle_cas) {
     char *key;
     size_t nkey;
@@ -3643,7 +3647,7 @@ enum delta_result_type do_add_delta(conn *c, const char *key, const size_t nkey,
 
     if (!safe_strtoull(ptr, &value)) {
         do_item_remove(it);
-        return sNON_NUMERIC;
+        return NON_NUMERIC;
     }
 
     if (incr) {
@@ -5702,7 +5706,7 @@ static bool _parse_slab_sizes(char *s, uint32_t *slab_sizes) {
 int main (int argc, char **argv) {
     //Jorge: Command line arguments for SHARDS
     int max_obj=1000000;
-    bm_type_t queue_type =0;
+    //bm_type_t queue_type =0;
     double R_initial = 0.1;    
 
     int c;
