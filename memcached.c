@@ -3224,8 +3224,11 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                     {   
                         //number_gets++;
                         //printf("Gets: %u\n", number_gets);
-                        bm_op_t op = {BM_READ_OP, hash(key, nkey), it->slabs_clsid};
-                        bm_record_op(op);
+                        if(queue_type!=BM_NONE){
+                            bm_op_t op = {BM_READ_OP, hash(key, nkey), it->slabs_clsid};
+                            bm_record_op(op);
+                        }
+                        
                     }
 
                     item **new_list = realloc(c->ilist, sizeof(item *) * c->isize * 2);
@@ -3492,8 +3495,11 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     {   
         //number_sets++;
         //printf("Sets: %u\n", number_sets);
-        bm_op_t op = {BM_WRITE_OP, hash(key, nkey), it->slabs_clsid};
-        bm_record_op(op);
+        if(queue_type!=BM_NONE){
+            bm_op_t op = {BM_WRITE_OP, hash(key, nkey), it->slabs_clsid};
+            bm_record_op(op);
+        }
+        
     }
     //printf("Slabs UPDATECOMMAND:%"PRIu8"\n", it->slabs_clsid);
     ITEM_set_cas(it, req_cas_id);
@@ -3637,7 +3643,7 @@ enum delta_result_type do_add_delta(conn *c, const char *key, const size_t nkey,
 
     if (!safe_strtoull(ptr, &value)) {
         do_item_remove(it);
-        return NON_NUMERIC;
+        return sNON_NUMERIC;
     }
 
     if (incr) {
