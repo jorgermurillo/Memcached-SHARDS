@@ -357,8 +357,7 @@ void SHARDS_free(SHARDS* shards){
 		}
 
 
-		shards->total_objects =0;
-		shards->num_obj=0;
+				
 		
 
 
