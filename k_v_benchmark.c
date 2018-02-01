@@ -201,7 +201,7 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
         power_largest = i;
         NUMBER_OF_SHARDS = i;
         size = settings.slab_chunk_size_max;
-        shards_array[i-1] = SHARDS_fixed_size_init_R(16000,R_initialize ,10, Uint64);
+        shards_array[i-1] = SHARDS_fixed_size_init_R(max_obj,R_initialize ,10, Uint64);
         item_sizes[i-1] = size;
         //fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
     
