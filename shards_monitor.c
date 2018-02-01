@@ -7,7 +7,7 @@ static unsigned int item_sizes[MAX_NUMBER_OF_SLAB_CLASSES];
 
 static int NUMBER_OF_SHARDS =0;
 int number_of_objects=0;
-int OBJECT_LIMIT= 1000;
+int OBJECT_LIMIT= 1000000;
 unsigned int epoch =1;
 char* mrc_path = "./Results/";
 char file_name[40];
@@ -15,17 +15,16 @@ FILE *mrc_file;
 
 
 
-void initialize_shard_n(const int i, const double R_initialize, const unsigned int size){
-	shards_array[i-1] = SHARDS_fixed_size_init_R(16000,R_initialize ,10, Uint64);
+void initialize_shard_n(const int max_obj,const int i, const double R_initialize, const unsigned int size){
+	shards_array[i-1] = SHARDS_fixed_size_init_R(max_obj,R_initialize ,10, Uint64);
 	item_sizes[i-1] = size;
 }
 
-void init_shards_slabs(uint32_t *slab_sizes, double factor, double R_initialize){
+void init_shards_slabs(const int max_obj,uint32_t *slab_sizes, double factor, double R_initialize){
 	int power_largest;
     int i = POWER_SMALLEST - 1;
     unsigned int size = sizeof(item) + settings.chunk_size; 
         //printf("SIZE OF ITEM: %u\n", size);
-
     while (++i < MAX_NUMBER_OF_SLAB_CLASSES-1) {
         if (slab_sizes != NULL) {
             if (slab_sizes[i-1] == 0)
@@ -42,7 +41,7 @@ void init_shards_slabs(uint32_t *slab_sizes, double factor, double R_initialize)
 
             //initializa each SHARDS struct in the shards array. Index is [i-1] because the numbering starts at 
             // one and no at zero.
-        initialize_shard_n(i, R_initialize, size);
+        initialize_shard_n(max_obj, i, R_initialize, size);
 
             //fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
         if (slab_sizes == NULL)
@@ -52,7 +51,7 @@ void init_shards_slabs(uint32_t *slab_sizes, double factor, double R_initialize)
     power_largest = i;
     NUMBER_OF_SHARDS=i;
     size = settings.slab_chunk_size_max;
-    initialize_shard_n(i, R_initialize, size);
+    initialize_shard_n(max_obj, i, R_initialize, size);
         //fprintf(stderr,"JORGE SIZE %d: %u\n", i, size);
     
 
@@ -74,16 +73,19 @@ void calculate_miss_rate_curve(){
                 //fprintf(stderr, "Calculating MRC of Slab %2d (size %2u)\n", k+1, item_sizes[k]);
 
                                 //fprintf(stderr,"-----total_objects : %u\n", shards_array[k]->total_objects); 
+
             GHashTable *mrc = MRC_fixed_size_empty(shards_array[k]);
                 //fprintf(stderr,"-----total_objects : %u\n", shards_array[k]->total_objects); 
+
             GList *keys = g_hash_table_get_keys(mrc);
+
             keys = g_list_sort(keys, (GCompareFunc) intcmp);
+
             mrc_file = fopen(file_name,"w");
 
                 //printf("WRITING MRC FILE...\n");
             GList *first = keys;
             while(keys!=NULL){
-                printf("%d %d\n",keys==NULL,keys->data==NULL);
 
                     //printf("key: %7d  \n",*(int*)keys->data );
                     //printf("Value: %1.6f\n",*(double*)g_hash_table_lookup(mrc, keys->data) );

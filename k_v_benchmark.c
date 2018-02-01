@@ -154,13 +154,13 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 		return;
 	}else if(queue_type==BM_TO_QUEUE || queue_type==BM_TO_LOCK_FREE_QUEUE){
 
-		init_shards_slabs(slab_sizes, factor, R_initialize);
+		init_shards_slabs(max_obj, slab_sizes, factor, R_initialize);
 	}
 		
 	fprintf(stderr, "----------------------->GUS: Init Benchmarking\n");
 	switch(queue_type) {
 		case BM_NONE: {
-			fprintf(stderr, "No Queuefghfghgh.\n");
+			fprintf(stderr, "No Queue.\n");
 			;
 		} break;
 		case BM_PRINT: {
@@ -278,9 +278,9 @@ void bm_process_op(bm_op_t op) {
 		}
 
 	}
-	printf("in\n");
+
 	shards_process_object_slab(slab_ID, object);
-	printf("out\n");
+
 }
 
 static
