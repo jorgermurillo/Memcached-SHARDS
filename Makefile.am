@@ -6,7 +6,7 @@ BUILT_SOURCES=
 
 CC = gcc -std=gnu11
 
-LIBS = -lzmq -levent -lpthread -llfds711
+LIBS = -lglib-2.0 -lzmq -levent -lpthread -llfds711 -lSHARDS
 
 testapp_SOURCES = testapp.c util.c util.h
 
@@ -26,10 +26,9 @@ memcached_SOURCES = memcached.c memcached.h \
                     bipbuffer.c bipbuffer.h \
                     logger.c logger.h \
                     crawler.c crawler.h \
-                    SHARDS.c SHARDS.h \
-                    splay.c splay.h \
                     murmurhash3.c murmurhash3.h \
-                    k_v_benchmark.c k_v_benchmark.h 
+                    k_v_benchmark.c k_v_benchmark.h \
+                    shards_monitor.c shards_monitor.h SHARDS.h
                     
 
 CFLAGS = -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -L/usr/lib -lm -lglib-2.0
