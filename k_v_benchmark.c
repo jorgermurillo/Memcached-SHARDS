@@ -150,6 +150,7 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 	bm_type = queue_type;
 	//shards2 = SHARDS_fixed_size_init(16000, 10, Uint64);
 	if (queue_type == BM_NONE){
+
 		fprintf(stderr, "No Queue.\n");
 		return;
 	}else if(queue_type==BM_TO_QUEUE || queue_type==BM_TO_LOCK_FREE_QUEUE){
@@ -157,6 +158,7 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 		init_shards_slabs(max_obj, slab_sizes, factor, R_initialize);
 	}
 		
+
 	fprintf(stderr, "----------------------->GUS: Init Benchmarking\n");
 	switch(queue_type) {
 		case BM_NONE: {
