@@ -27,7 +27,9 @@ try typing
 This version has additional dependencies to Memcached. These are:
 
 [ZeroMQ](http://zeromq.org/)
+
 [liblfds7.1.1](https://liblfds.org/) [Github repository](https://github.com/liblfds/liblfds7.1.1)
+
 [SHARDS-C](https://github.com/jorgermurillo/SHARDS-C)
 
 ## Referencing our work
