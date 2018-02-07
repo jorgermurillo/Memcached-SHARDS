@@ -104,8 +104,8 @@ int  bm_output_fd = -1;
 
 
 //MPSC (Lockfree queue) stuff
-struct mpscq* bm_mpsc_oq;
-int BM_MPSC_OQ_CAP = (1000000 +1);// @ Gus: capacity must be set right becasuse mpsc is NOT a ring buffer
+//struct mpscq* bm_mpsc_oq;
+int QUEUE_LENGTH = (1500000 +1);// 
 //Ringbuf stuff
 enum lfds711_misc_flag overwrite_occurred_flag;
 struct lfds711_ringbuffer_element *re;
@@ -137,7 +137,7 @@ int get_and_set_config_from_file() {
 
 	char line[50];
 	fgets(line, 50, bm_config_fptr);
-	BM_MPSC_OQ_CAP = atoi(line);
+	QUEUE_LENGTH = atoi(line);
 	fgets(line, 50, bm_config_fptr);
 	bm_process_op_type = atoi(line);
 	fgets(line, 50, bm_config_fptr);
@@ -147,6 +147,13 @@ int get_and_set_config_from_file() {
 }
 
 void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double factor, double R_initialize) {
+	
+	int rc = get_and_set_config_from_file();
+
+	if(rc!=0){
+		fprintf(stderr, "The configuration file bm_cofig.txt could not be found. Using default and/or flag values.\n");
+	}
+
 	bm_type = queue_type;
 	//shards2 = SHARDS_fixed_size_init(16000, 10, Uint64);
 	if (queue_type == BM_NONE){
@@ -157,7 +164,8 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 
 		init_shards_slabs(max_obj, slab_sizes, factor, R_initialize);
 	}
-		
+	
+
 
 	fprintf(stderr, "----------------------->GUS: Init Benchmarking\n");
 	switch(queue_type) {
@@ -180,13 +188,13 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 			bm_oq_init(&bm_oq);
 		} break;
 		case BM_TO_LOCK_FREE_QUEUE: {
-			//fprintf(stderr, "Lock Free Queue. Capacity: %d\n", BM_MPSC_OQ_CAP);
-			//bm_mpsc_oq = mpscq_create(NULL, BM_MPSC_OQ_CAP);
+			//fprintf(stderr, "Lock Free Queue. Capacity: %d\n", QUEUE_LENGTH);
+			//bm_mpsc_oq = mpscq_create(NULL, QUEUE_LENGTH);
 			// {
-			//     bm_mpsc_oq = mpscq_create(NULL, BM_MPSC_OQ_CAP);
+			//     bm_mpsc_oq = mpscq_create(NULL, QUEUE_LENGTH);
 			// }
 			// {
-			//     size_t buf_len = BM_MPSC_OQ_CAP * sizeof(bm_op_t);
+			//     size_t buf_len = QUEUE_LENGTH * sizeof(bm_op_t);
 			//     buf = malloc(buf_len);
 			//     memset(buf, 0, buf_len);
 			//     ringbuf_get_sizes(MAX_WORKERS, &ringbuf_obj_size, NULL);
@@ -198,8 +206,8 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 			{
 				// @ Gus: plus one extra for the necessary dummy element
 				printf( "Ring Buffer...\n");
-				re = malloc( sizeof(struct lfds711_ringbuffer_element) * BM_MPSC_OQ_CAP + 1 );
-				lfds711_ringbuffer_init_valid_on_current_logical_core( &rs, re, BM_MPSC_OQ_CAP + 1, NULL );
+				re = malloc( sizeof(struct lfds711_ringbuffer_element) * QUEUE_LENGTH + 1 );
+				lfds711_ringbuffer_init_valid_on_current_logical_core( &rs, re, QUEUE_LENGTH + 1, NULL );
 			}
 
 		} break;
@@ -215,6 +223,10 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 			fprintf (stderr, "Started zmq server...\n");
 		} break;
 	}
+
+
+
+	fprintf(stderr, "QUEUE LENGTH: %d\n", QUEUE_LENGTH);
 }
 
 static
