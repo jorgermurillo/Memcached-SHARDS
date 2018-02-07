@@ -1,8 +1,8 @@
 # Memcached-SHARDS
 
-This is a modified version of Memcached that uses SHARDS (https://github.com/jorgermurillo/SHARDS-C) to monitor the MRC of each slab.
+This is a modified version of Memcached that uses SHARDS (https://github.com/jorgermurillo/SHARDS-C) to monitor the miss rate curve of each slab.
 
-This work was done jointly with Gustavo Totoy (https://github.com/gtotoy) as part of a larger project for Dr. Cristina Abad (https://sites.google.com/site/cristinaabad/). 
+This work was done jointly with [Gustavo Totoy](https://github.com/gtotoy) as part of a larger project for [Prof. Cristina Abad](https://sites.google.com/site/cristinaabad/). 
 
  :rotating_light:  :rotating_light:  :rotating_light: 
  ## WARNING  
@@ -20,6 +20,15 @@ try typing
  	$ export LD_LIBRARY_PATH=/usr/local/lib
 
  on the terminal.
+
+
+## Dependencies
+
+This version has additional dependencies to Memcached. These are:
+
+[ZeroMQ](http://zeromq.org/)
+[liblfds7.1.1](https://liblfds.org/) [Github repository](https://github.com/liblfds/liblfds7.1.1)
+[SHARDS-C](https://github.com/jorgermurillo/SHARDS-C)
 
 ## Referencing our work
 If you found our tool useful and use it in research, please cite our work as follows:

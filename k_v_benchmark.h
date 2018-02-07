@@ -11,6 +11,7 @@
 #include <zmq.h>
 #include "SHARDS.h"
 
+
 typedef enum {
 	BM_NONE,
 	BM_PRINT,
