@@ -3187,7 +3187,9 @@ static void process_stat(conn *c, token_t *tokens, const size_t ntokens) {
 }
 //unsigned int number_gets =0;
 /* ntokens is overwritten here... shrug.. */
-bm_type_t queue_type =0;
+
+// queue_type is initialized as -1 so we can detect whether its value was set via a flag in the command line
+bm_type_t queue_type = 0;
 
 static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens, bool return_cas) {
     char *key;
@@ -3226,10 +3228,10 @@ static inline void process_get_command(conn *c, token_t *tokens, size_t ntokens,
                     {   
                         //number_gets++;
                         //printf("Gets: %u\n", number_gets);
-                        if(queue_type!=BM_NONE){
-                            bm_op_t op = {BM_READ_OP, hash(key, nkey), it->slabs_clsid};
-                            bm_record_op(op);
-                        }
+                        
+                        bm_op_t op = {BM_READ_OP, hash(key, nkey), it->slabs_clsid};
+                        bm_record_op(op);
+                        
                         
                     }
 
@@ -3499,10 +3501,10 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     {   
         //number_sets++;
         //printf("Sets: %u\n", number_sets);
-        if(queue_type!=BM_NONE){
-            bm_op_t op = {BM_WRITE_OP, hash(key, nkey), it->slabs_clsid};
-            bm_record_op(op);
-        }
+        
+        bm_op_t op = {BM_WRITE_OP, hash(key, nkey), it->slabs_clsid};
+        bm_record_op(op);
+        
         
     }
     //printf("Slabs UPDATECOMMAND:%"PRIu8"\n", it->slabs_clsid);
@@ -5706,7 +5708,7 @@ static bool _parse_slab_sizes(char *s, uint32_t *slab_sizes) {
 int main (int argc, char **argv) {
     //Jorge: Command line arguments for SHARDS
     int max_obj=1000000;
-    //bm_type_t queue_type =0;
+    bool queue_specified = false;
     double R_initial = 0.1;    
 
     int c;
@@ -5843,7 +5845,7 @@ int main (int argc, char **argv) {
           "o:"  /* Extended generic options */
           "G:"  /* R_init value for the SHARDS instances */
           "Q:"  /* Queue */
-          "O:"  /* max objects between epochs in hSHARDS */
+          "O:"  /* max objects between epochs in SHARDS */
         ))) {
         switch (c) {
         case 'O':
@@ -5851,6 +5853,7 @@ int main (int argc, char **argv) {
             break;
         case 'Q':
             queue_type = strtol(optarg,NULL,10);
+            queue_specified = true;
             break;
         case 'A':
             /* enables "shutdown" command */
@@ -6253,7 +6256,7 @@ int main (int argc, char **argv) {
         fprintf(stderr, "The initial values of R for SHARDS must lie in the range (0,1]\n" );
         return 1;
     }
-    if(queue_type <0 || queue_type>5){
+    if( queue_specified==true && (queue_type <0 || queue_type>5)  ){
         fprintf(stderr, "The values for Q must be between 0 and 5 where:\n0 BM_NONE\n1 BM_PRINT\n2 BM_DIRECT_FILE\n3 BM_TO_QUEUE\n4 BM_TO_RING_BUFFER\n5 BM_TO_ZEROMQ\n");
         return 1;
     }
@@ -6436,7 +6439,13 @@ int main (int argc, char **argv) {
     }
     /* start up worker threads if MT mode */
     memcached_thread_init(settings.num_threads);
-    bm_init(max_obj, queue_type, use_slab_sizes ? slab_sizes : NULL, settings.factor, R_initial);
+
+
+    if(queue_specified){
+        bm_init(max_obj, queue_type, use_slab_sizes ? slab_sizes : NULL, settings.factor, R_initial);
+    }else{
+        bm_init(max_obj, -1, use_slab_sizes ? slab_sizes : NULL, settings.factor, R_initial);
+    }
     
     if (start_assoc_maintenance_thread() == -1) {
         exit(EXIT_FAILURE);
@@ -6547,9 +6556,9 @@ int main (int argc, char **argv) {
     //SHARDS *shards = SHARDS_fixed_size_init(32000, 10, Uint64);
 
     pthread_t bm_thread;
-    if(queue_type!=BM_NONE){
+    //if(queue_type!=BM_NONE){
         pthread_create(&bm_thread, NULL, bm_loop_in_thread, NULL);
-    }
+    //}
     //pthread_create(&bm_thread, NULL, bm_loop_in_thread, shards);
 
     /* enter the event loop */

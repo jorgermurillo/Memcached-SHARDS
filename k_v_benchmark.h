@@ -13,13 +13,14 @@
 
 
 typedef enum {
-	BM_NONE,
-	BM_PRINT,
-	BM_DIRECT_FILE,
-	BM_TO_QUEUE,
-	BM_TO_LOCK_FREE_QUEUE,
-	BM_TO_ZEROMQ,
+	BM_NONE,					// 0
+	BM_PRINT,					// 1
+	BM_DIRECT_FILE,				// 2
+	BM_TO_QUEUE,				// 3
+	BM_TO_LOCK_FREE_QUEUE,		// 4
+	BM_TO_ZEROMQ,				// 5
 } bm_type_t;
+
 
 typedef enum {
 	BM_PROCESS_DUMMY,		//0

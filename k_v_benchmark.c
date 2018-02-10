@@ -106,6 +106,8 @@ int  bm_output_fd = -1;
 //MPSC (Lockfree queue) stuff
 //struct mpscq* bm_mpsc_oq;
 int QUEUE_LENGTH = (1500000 +1);// 
+
+
 //Ringbuf stuff
 enum lfds711_misc_flag overwrite_occurred_flag;
 struct lfds711_ringbuffer_element *re;
@@ -134,15 +136,22 @@ int get_and_set_config_from_file() {
 		fprintf(stderr, "%s does NOT exist or it is Wrong.\n", filename);
 		return -1;
 	}
-
+	fprintf(stderr,"Config File functio.\n");
 	char line[50];
 	fgets(line, 50, bm_config_fptr);
-	QUEUE_LENGTH = atoi(line);
+	bm_type = atoi(line);					// Queue Type
+
+	fgets(line, 50, bm_config_fptr);
+	QUEUE_LENGTH = atoi(line);				// Queue Length
+
+	/*
 	fgets(line, 50, bm_config_fptr);
 	bm_process_op_type = atoi(line);
 	fgets(line, 50, bm_config_fptr);
 	SPIN_TIME = atoi(line);
 	fclose(bm_config_fptr);
+	*/
+
 	return 0;
 }
 
@@ -152,15 +161,21 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 
 	if(rc!=0){
 		fprintf(stderr, "The configuration file bm_cofig.txt could not be found. Using default and/or flag values.\n");
+	}else{
+	}
+	// If queue_type has a value of -1, it means that no flag option was given for the type of queue, and we need to use the value in the config file.
+	// The validation of wheter a value was given, and if the value was in the desired range is done in the main. 
+	if(queue_type!=-1){
+		bm_type = queue_type;
 	}
 
-	bm_type = queue_type;
-	//shards2 = SHARDS_fixed_size_init(16000, 10, Uint64);
-	if (queue_type == BM_NONE){
+	// Fom here on we use the variable bm_type to set set up the corresponding type of queue
+	fprintf(stderr, "QUEUE TYPE: %d\n", bm_type);
+	if (bm_type == BM_NONE){
 
 		fprintf(stderr, "No Queue.\n");
 		return;
-	}else if(queue_type==BM_TO_QUEUE || queue_type==BM_TO_LOCK_FREE_QUEUE){
+	}else if(bm_type==BM_TO_QUEUE || bm_type==BM_TO_LOCK_FREE_QUEUE){
 
 		init_shards_slabs(max_obj, slab_sizes, factor, R_initialize);
 	}
@@ -395,6 +410,11 @@ void bm_libevent_loop() {
 
 void* bm_loop_in_thread(void* args) {
 	//SHARDS * shards = (SHARDS*)args;
+
+	if(bm_type==BM_NONE){
+		return;
+	}
+	//fprintf(stderr, "Mensaje de bm_loop_in_thread\n");
 	bm_output_fd = open(bm_output_filename, 
 						O_WRONLY | O_CREAT | O_TRUNC,
 						S_IRUSR | S_IWUSR);

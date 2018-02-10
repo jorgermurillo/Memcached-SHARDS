@@ -66,24 +66,29 @@ void init_shards_slabs(const int max_obj,uint32_t *slab_sizes, double factor, do
 
 void calculate_miss_rate_curve(){
 
-
+    //fprintf(stderr, "Number of SHARDS : %2d\n", NUMBER_OF_SHARDS);
     for( int k =0; k< NUMBER_OF_SHARDS; k++){
+        //fprintf(stderr, "Number of Objects: %7d\n" , shards_array[k]->num_obj);
+
         if(shards_array[k]->num_obj !=0 ){
             snprintf(file_name,40,"%sMRC_epoch_%05d_slab_%02d.csv",mrc_path, epoch, k+1);
-                //fprintf(stderr, "Calculating MRC of Slab %2d (size %2u)\n", k+1, item_sizes[k]);
 
-                                //fprintf(stderr,"-----total_objects : %u\n", shards_array[k]->total_objects); 
+            //fprintf(stderr, "SHARDS number %2d: %p\n", k+1, shards_array[k]);
+            //fprintf(stderr, "Calculating MRC of Slab %2d (size %10u)\n", k+1, item_sizes[k]);
 
-            GHashTable *mrc = MRC_fixed_size_empty(shards_array[k]);
-                //fprintf(stderr,"-----total_objects : %u\n", shards_array[k]->total_objects); 
+            //fprintf(stderr,"1)-----total_objects : %u\n", shards_array[k]->total_objects); 
 
+            GHashTable *mrc = MRC_empty(shards_array[k]);
+            //fprintf(stderr,"2)-----total_objects : %u\n", shards_array[k]->total_objects); 
+            //fprintf(stderr, "MRC was created.\n" );
             GList *keys = g_hash_table_get_keys(mrc);
-
+            //fprintf(stderr, "Keys were accessed.\n");
             keys = g_list_sort(keys, (GCompareFunc) intcmp);
+            //fprintf(stderr, "\n %d %s \n", k+1, file_name);
 
             mrc_file = fopen(file_name,"w");
 
-                //printf("WRITING MRC FILE...\n");
+            //printf("WRITING MRC FILE %2d...\n",k+1);
             GList *first = keys;
             while(keys!=NULL){
 
@@ -91,6 +96,7 @@ void calculate_miss_rate_curve(){
                     //printf("Value: %1.6f\n",*(double*)g_hash_table_lookup(mrc, keys->data) );
                     //printf("key: %7d  Value: %1.6f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
                 fprintf(mrc_file,"%7d,%1.7f\n",*(int*)keys->data, *(double*)g_hash_table_lookup(mrc, keys->data) );
+                //printf("HEY!\n");
                 keys=keys->next;
             }
 

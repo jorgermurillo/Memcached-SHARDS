@@ -31,7 +31,7 @@ memcached_SOURCES = memcached.c memcached.h \
                     SHARDS.h
                     
 
-CFLAGS = -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -L/usr/lib -lm -lglib-2.0
+CFLAGS = -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -L/usr/lib -lm -lglib-2.0 -g
 
 if BUILD_CACHE
 memcached_SOURCES += cache.c
