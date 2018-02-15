@@ -82,7 +82,7 @@ bm_type_t bm_type = BM_NONE;
 
 bm_oq_t bm_oq;
 
-bm_process_op_t bm_process_op_type = BM_PROCESS_DUMMY;
+bm_process_op_t bm_process_op_type = BM_PROCESS_DUMMY;//BM_PROCESS_PRINT; //
 int SPIN_TIME = -1;
 int random_accum = 0;
 
@@ -144,6 +144,8 @@ int get_and_set_config_from_file() {
 	fgets(line, 50, bm_config_fptr);
 	QUEUE_LENGTH = atoi(line);				// Queue Length
 
+
+
 	/*
 	fgets(line, 50, bm_config_fptr);
 	bm_process_op_type = atoi(line);
@@ -177,7 +179,7 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 		return;
 	}else if(bm_type==BM_TO_QUEUE || bm_type==BM_TO_LOCK_FREE_QUEUE){
 
-		init_shards_slabs(max_obj, slab_sizes, factor, R_initialize);
+		init_shards_slabs(max_obj, 50, slab_sizes, factor, R_initialize);
 	}
 	
 
@@ -221,7 +223,7 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 			{
 				// @ Gus: plus one extra for the necessary dummy element
 				printf( "Ring Buffer...\n");
-				re = malloc( sizeof(struct lfds711_ringbuffer_element) * QUEUE_LENGTH + 1 );
+				re = malloc( sizeof(struct lfds711_ringbuffer_element) * (QUEUE_LENGTH + 1) );
 				lfds711_ringbuffer_init_valid_on_current_logical_core( &rs, re, QUEUE_LENGTH + 1, NULL );
 			}
 
