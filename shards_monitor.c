@@ -20,9 +20,9 @@ void initialize_shard_n(const int set_size,const int i, const double R_initializ
 	item_sizes[i-1] = size;
 }
 
-void init_shards_slabs(const int max_obj, const int set_size , uint32_t *slab_sizes, double factor, double R_initialize){
+void init_shards_slabs(const int epoch_length, const int set_size , uint32_t *slab_sizes, double factor, double R_initialize){
 	
-    OBJECT_LIMIT = max_obj;
+    OBJECT_LIMIT = epoch_length;
     int power_largest;
     int i = POWER_SMALLEST - 1;
     unsigned int size = sizeof(item) + settings.chunk_size; 
@@ -78,28 +78,29 @@ void calculate_miss_rate_curve(){
             //fprintf(stderr, "SHARDS number %2d: %p\n", k+1, shards_array[k]);
             //fprintf(stderr, "Calculating MRC of Slab %2d (size %10u)\n", k+1, item_sizes[k]);
 
-            fprintf(stderr,"%2d)-----total_objects : %u\n",k+1 ,shards_array[k]->total_objects); 
-            fprintf(stderr,"-----num_objects : %u\n", shards_array[k]->num_obj);
+            //fprintf(stderr,"%2d)-----total_objects : %u\n",k+1 ,shards_array[k]->total_objects); 
+            //fprintf(stderr,"-----num_objects : %u\n", shards_array[k]->num_obj);
             //*******
             GHashTable *mrc = MRC_empty(shards_array[k]);
-            fprintf(stderr, "MRC calculated!\n\n" );
+            //fprintf(stderr, "MRC calculated!\n\n" );
 
              
 
             //fprintf(stderr, "MRC was created.\n" );
             
-            /*
-            List *keys = g_hash_table_get_keys(mrc);
+            
+            GList *keys = g_hash_table_get_keys(mrc);
             
 
             //fprintf(stderr, "Keys were accessed.\n");
             keys = g_list_sort(keys, (GCompareFunc) intcmp);
+            /*
             fprintf(stderr, "\n %d %s \n", k+1, file_name);
             */
             mrc_file = fopen(file_name,"w");
 
             //printf("WRITING MRC FILE %2d...\n",k+1);
-            /*
+            
             GList *first = keys;
             while(keys!=NULL){
 
@@ -110,14 +111,14 @@ void calculate_miss_rate_curve(){
                 //printf("HEY!\n");
                 keys=keys->next;
             }
-            */
+            
             //SHARDS_free(shards_array[k]);
             fclose(mrc_file);
                 //printf("MRC FILE WRITTEN! :D\n");
 
                 //printf("R Value:%f\n", shards_array[k]->R);
                 //printf("T Value:%"PRIu64"\n", shards_array[k]->T);
-            //g_list_free(first);
+            g_list_free(first);
             g_hash_table_destroy(mrc);
 
 

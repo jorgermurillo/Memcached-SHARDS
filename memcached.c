@@ -5707,7 +5707,7 @@ static bool _parse_slab_sizes(char *s, uint32_t *slab_sizes) {
 
 int main (int argc, char **argv) {
     //Jorge: Command line arguments for SHARDS
-    int max_obj=1000000;
+    int epoch_lenth=1000000;
     bool queue_specified = false;
     double R_initial = 0.1;    
 
@@ -5849,7 +5849,7 @@ int main (int argc, char **argv) {
         ))) {
         switch (c) {
         case 'O':
-            max_obj = strtol(optarg,NULL,10);
+            epoch_lenth = strtol(optarg,NULL,10);
             break;
         case 'Q':
             queue_type = strtol(optarg,NULL,10);
@@ -6248,7 +6248,7 @@ int main (int argc, char **argv) {
             return 1;
         }
     }
-    if(max_obj<=0){
+    if(epoch_lenth<=0){
         fprintf(stderr, "The number of objects to read in SHARDS between each epoch must be greater than 0.\n" );
         return 1;
     }
@@ -6442,9 +6442,9 @@ int main (int argc, char **argv) {
 
 
     if(queue_specified){
-        bm_init(max_obj, queue_type, use_slab_sizes ? slab_sizes : NULL, settings.factor, R_initial);
+        bm_init(epoch_lenth, queue_type, use_slab_sizes ? slab_sizes : NULL, settings.factor, R_initial);
     }else{
-        bm_init(max_obj, -1, use_slab_sizes ? slab_sizes : NULL, settings.factor, R_initial);
+        bm_init(epoch_lenth, -1, use_slab_sizes ? slab_sizes : NULL, settings.factor, R_initial);
     }
     
     if (start_assoc_maintenance_thread() == -1) {

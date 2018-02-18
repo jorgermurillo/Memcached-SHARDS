@@ -157,7 +157,7 @@ int get_and_set_config_from_file() {
 	return 0;
 }
 
-void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double factor, double R_initialize) {
+void bm_init(int epoch_length, bm_type_t queue_type, uint32_t *slab_sizes, double factor, double R_initialize) {
 	
 	int rc = get_and_set_config_from_file();
 
@@ -179,7 +179,7 @@ void bm_init(int max_obj, bm_type_t queue_type, uint32_t *slab_sizes, double fac
 		return;
 	}else if(bm_type==BM_TO_QUEUE || bm_type==BM_TO_LOCK_FREE_QUEUE){
 
-		init_shards_slabs(max_obj, 50, slab_sizes, factor, R_initialize);
+		init_shards_slabs(epoch_length, 32000, slab_sizes, factor, R_initialize);
 	}
 	
 
